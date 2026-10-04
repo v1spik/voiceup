@@ -20,7 +20,9 @@
             --button-hover: #2a2a2a; 
             --success: #50fa7b; 
             --danger: #ff5555; 
-            --accent: #5865f2;
+            --purple-accent: #a855f7;
+            --purple-glow: rgba(168, 85, 247, 0.2);
+            --purple-border: rgba(168, 85, 247, 0.4);
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; font-weight: 400; }
         body { background-color: var(--bg); color: var(--text-main); height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
@@ -34,7 +36,7 @@
         .lang-switch span { cursor: pointer; transition: color 0.2s; }
         .lang-switch span.active { color: var(--text-main); font-weight: 500; }
 
-        /* Верхняя панель комнаты */
+        /* Верхняя панель голосовой комнаты */
         #room-header {
             position: absolute;
             top: 16px;
@@ -71,7 +73,7 @@
         }
         .header-btn:hover { color: var(--text-main); border-color: #555; background: var(--button-hover); }
         .header-btn svg { width: 12px; height: 12px; }
-        .header-btn.active { color: var(--success); border-color: rgba(80, 250, 123, 0.4); }
+        .header-btn.active { color: var(--purple-accent); border-color: var(--purple-border); box-shadow: 0 0 10px var(--purple-glow); }
 
         #room-screen { 
             flex: 1; 
@@ -148,27 +150,30 @@
         }
         button.secondary-btn:hover { color: var(--text-main); border-color: #555; }
 
-        /* Блок закрепленных комнат */
+        /* Фиолетовый неоновый дизайн для закрепленных комнат */
         #pinned-rooms-section {
             display: none;
             flex-direction: column;
             gap: 8px;
-            margin-top: 6px;
-            border-top: 1px solid #222;
+            margin-top: 8px;
+            border-top: 1px solid rgba(168, 85, 247, 0.2);
             padding-top: 12px;
             text-align: left;
         }
         .pinned-rooms-title {
             font-size: 11px;
-            color: var(--text-muted);
+            color: var(--purple-accent);
+            text-shadow: 0 0 8px var(--purple-glow);
+            font-weight: 500;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            letter-spacing: 0.5px;
         }
         .pinned-list { display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; }
         .pinned-room-btn {
-            background: var(--bg-secondary);
-            border: 1px solid #282828;
+            background: rgba(168, 85, 247, 0.06);
+            border: 1px solid rgba(168, 85, 247, 0.25);
             color: var(--text-main);
             padding: 8px 12px;
             border-radius: 6px;
@@ -177,11 +182,15 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: 0.2s;
+            transition: all 0.2s ease;
             text-align: left;
         }
-        .pinned-room-btn:hover { border-color: #555; background: var(--button-hover); }
-        .pinned-room-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pinned-room-btn:hover {
+            border-color: var(--purple-accent);
+            background: rgba(168, 85, 247, 0.14);
+            box-shadow: 0 0 12px var(--purple-glow);
+        }
+        .pinned-room-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #f3e8ff; }
         .pinned-room-del { color: var(--text-muted); padding: 2px 6px; font-size: 14px; }
         .pinned-room-del:hover { color: var(--danger); }
 
@@ -259,7 +268,6 @@
             height: 14px;
             color: var(--success);
         }
-        /* ПК браузер: минималистичная иконка сети/браузера */
         .status-dot-pc {
             width: 12px;
             height: 12px;
@@ -268,7 +276,6 @@
             justify-content: center;
         }
         .status-dot-pc svg { width: 12px; height: 12px; color: var(--success); }
-        /* Мобильное устройство: вертикальный силуэт смартфона */
         .status-dot-mobile {
             width: 8px;
             height: 12px;
@@ -288,7 +295,6 @@
             background: var(--success);
             border-radius: 0.5px;
         }
-        /* Десктоп-приложение: монитор */
         .status-dot-app {
             width: 11px;
             height: 8px;
@@ -419,7 +425,7 @@
         }
         #toast-notification.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-        /* 3. АДАПТИВНОСТЬ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ */
+        /* Мобильная адаптивность */
         @media (max-width: 768px) {
             .app-name { display: none; }
             #room-header {
@@ -536,7 +542,7 @@
 
         <button id="startBtn" class="primary-btn trans-enter">войти</button>
 
-        <!-- Слоты закрепленных комнат (0/5) -->
+        <!-- Слоты закрепленных комнат (0/5) с неоновым фиолетовым стилем -->
         <div id="pinned-rooms-section">
             <div class="pinned-rooms-title">
                 <span id="pinned-counter-text">закрепленные комнаты (0/5)</span>
@@ -620,6 +626,17 @@
 
     <script>
         const MAX_PINNED_ROOMS = 5;
+        const PEER_CONFIG = {
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'turn:relay.metered.ca:80', username: 'metered', credential: 'Password123' },
+                    { urls: 'turn:relay.metered.ca:443', username: 'metered', credential: 'Password123' }
+                ]
+            }
+        };
+
         const dict = {
             ru: { 
                 welcome: "voiceup", 
@@ -631,9 +648,8 @@
                 pinLimitReached: "лимит закрепленных комнат (5/5)",
                 online: "на связи", 
                 you: " (вы)", 
-                guest: "гость", 
-                host: "создатель",
-                trueAdmin: "админ",
+                guest: "участник", 
+                admin: "админ",
                 needMic: "необходим доступ к микрофону", 
                 needNick: "введите никнейм", 
                 photo: "фото", 
@@ -677,9 +693,8 @@
                 pinLimitReached: "pinned rooms limit reached (5/5)",
                 online: "online", 
                 you: " (you)", 
-                guest: "guest", 
-                host: "host",
-                trueAdmin: "admin",
+                guest: "member", 
+                admin: "admin",
                 needMic: "microphone access required", 
                 needNick: "enter nickname", 
                 photo: "photo", 
@@ -738,14 +753,12 @@
 
         const myDeviceType = detectDeviceType();
 
-        // 4. ДИЗАЙН ТОЧКИ СТАТУСА ДЛЯ ПК-БРАУЗЕРА, МОБИЛЬНЫХ И ДЕСКТОП-ПРИЛОЖЕНИЙ
         function getStatusDotHtml(deviceType) {
             if (deviceType === 'mobile') {
                 return `<div class="status-device-indicator" title="mobile"><div class="status-dot-mobile"></div></div>`;
             } else if (deviceType === 'app') {
                 return `<div class="status-device-indicator" title="app"><div class="status-dot-app"></div></div>`;
             }
-            // ПК-браузер: аккуратная минималистичная иконка сети/браузера
             return `<div class="status-device-indicator" title="pc"><div class="status-dot-pc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></div></div>`;
         }
 
@@ -829,10 +842,10 @@
             roomCodeInput.value = activeRoom;
         }
 
-        let isRoomHost = false;
         let isTrueAdmin = false;
+        let isDutyCoordinator = false;
         let myId = "";
-        let hostPeerId = "";
+        let dutyPeer = null;
         let qrCodeInstance = null;
 
         function checkTrueAdminStatus() {
@@ -846,9 +859,9 @@
             pinRoomBtn.classList.toggle('active', isPinned);
             pinBtnText.innerText = isPinned ? dict[currentLang].pinnedActive : dict[currentLang].pinBtn;
 
-            if (myProfile.isAdmin) {
+            if (isTrueAdmin) {
                 roomRoleTag.className = 'role-badge host';
-                roomRoleTag.innerText = isTrueAdmin ? dict[currentLang].trueAdmin : dict[currentLang].host;
+                roomRoleTag.innerText = dict[currentLang].admin;
             } else {
                 roomRoleTag.className = 'role-badge guest';
                 roomRoleTag.innerText = dict[currentLang].guest;
@@ -891,6 +904,7 @@
         let isAssigningMicHotkey = false; 
         let isAssigningDeafenHotkey = false;
 
+        // 4. ДЕТЕРМИНИРОВАННЫЙ СОЗВОН (shouldInitiateCall)
         function shouldInitiateCall(peerA, peerB) {
             return peerA > peerB;
         }
@@ -915,37 +929,32 @@
             setTimeout(() => { toastNotif.classList.remove('show'); }, 1800);
         }
 
-        // ОБРАБОТЧИК СИГНАЛОВ
+        // ОБРАБОТЧИК СИГНАЛОВ MESH СЕТИ
         function handleIncomingSignal(remoteId, message) {
             const peerId = message.id || remoteId;
             const peerProfile = message.profile || { nick: dict[currentLang].guest, color: '#ffffff', avatar: '', deviceType: 'pc' };
 
-            // 2. ФИКС РАЗДВОЕНИЯ: АДМИН ПЕРЕПОДКЛЮЧИЛСЯ
-            if (message.type === 'admin-reconnected') {
-                if (message.isTrueAdmin && message.newAdminId) {
-                    const oldHostId = hostPeerId;
-                    if (oldHostId !== message.newAdminId) {
-                        cleanupPeer(oldHostId);
-                    }
-                    if (isRoomHost && !isTrueAdmin) {
-                        myProfile.isAdmin = false;
-                        updateRoomHeaderUI();
-                        updateCardVisuals(myId, myProfile, true);
-                    }
-                    if (!activeConnections[message.newAdminId]) {
-                        connectDataToPeer(message.newAdminId);
-                    }
-                }
+            // Запрос списка участников от новичка к Дежурному
+            if (message.type === 'get_mesh_peers') {
+                const allPeers = Object.keys(activeConnections).filter(id => id !== peerId);
+                sendToPeer(peerId, {
+                    type: 'mesh_peer_list',
+                    peers: allPeers
+                });
                 return;
             }
 
-            if (message.type === 'claim_true_admin') {
-                if (message.deviceId === localStorage.getItem('voiceup_admin_hwid_' + activeRoom) || message.isTrueAdmin) {
-                    if (isRoomHost && !isTrueAdmin) {
-                        myProfile.isAdmin = false;
-                        updateRoomHeaderUI();
-                        updateCardVisuals(myId, myProfile, true);
+            if (message.type === 'mesh_peer_list' && Array.isArray(message.peers)) {
+                message.peers.forEach(otherId => {
+                    if (otherId !== myId && !activeConnections[otherId]) {
+                        connectDataToPeer(otherId);
                     }
+                });
+                return;
+            }
+
+            if (message.type === 'admin_claim') {
+                if (message.isTrueAdmin) {
                     if (userProfiles[peerId]) {
                         userProfiles[peerId].isAdmin = true;
                         updateCardVisuals(peerId, userProfiles[peerId], false);
@@ -954,14 +963,16 @@
                 return;
             }
 
-            if (myProfile.isAdmin && (message.type === 'join' || message.type === 'handshake')) {
+            // Проверка бана
+            if (isTrueAdmin && message.type === 'handshake') {
                 if (bannedDevices[message.profile?.deviceId]) {
                     sendToPeer(peerId, { type: 'banned_reject', target: peerId, senderName: myProfile.nick });
                     return;
                 }
             }
 
-            if (myProfile.isAdmin && message.type === 'ban_appeal') {
+            // Апелляция бана
+            if (isTrueAdmin && message.type === 'ban_appeal') {
                 if (ignoredAppeals[message.deviceId]) return; 
                 const notifId = `appeal-${message.deviceId}`; 
                 if (document.getElementById(notifId)) return; 
@@ -1001,6 +1012,7 @@
                 const targetToClean = message.id || peerId;
                 cleanupPeer(targetToClean);
                 playUiSound('leave');
+                checkAndClaimDuty();
                 return;
             }
 
@@ -1027,72 +1039,16 @@
                 return; 
             }
 
-            if (message.type === 'join' && isRoomHost) {
-                userProfiles[peerId] = peerProfile;
-                userStates[peerId] = message.state || { mic: true, deaf: false, adminMuted: false };
-                addUserCard(peerId, peerProfile, false);
-
-                const currentPeers = Object.keys(activeConnections).filter(id => id !== peerId);
-                sendToPeer(peerId, {
-                    type: 'room-state',
-                    target: peerId,
-                    id: myId,
-                    profile: myProfile,
-                    state: userStates[myId],
-                    peerList: currentPeers
-                });
-
-                broadcastSignaling({
-                    type: 'new-peer-announced',
-                    id: peerId,
-                    profile: peerProfile,
-                    state: userStates[peerId]
-                });
-
-                evaluateVoiceCall(peerId);
-                return;
-            }
-
-            if (message.type === 'room-state' && message.target === myId) {
-                userProfiles[peerId] = peerProfile;
-                userStates[peerId] = message.state || { mic: true, deaf: false, adminMuted: false };
-                addUserCard(peerId, peerProfile, false);
-                evaluateVoiceCall(peerId);
-
-                if (isTrueAdmin) {
-                    sendToPeer(peerId, { type: 'claim_true_admin', id: myId, deviceId: myProfile.deviceId, isTrueAdmin: true });
-                }
-
-                if (Array.isArray(message.peerList)) {
-                    message.peerList.forEach(otherId => {
-                        if (otherId !== myId && !activeConnections[otherId]) {
-                            connectDataToPeer(otherId);
-                        }
-                    });
-                }
-                return;
-            }
-
-            if (message.type === 'new-peer-announced' && message.id !== myId) {
-                const newPeerId = message.id;
-                userProfiles[newPeerId] = message.profile || peerProfile;
-                userStates[newPeerId] = message.state || { mic: true, deaf: false, adminMuted: false };
-                addUserCard(newPeerId, userProfiles[newPeerId], false);
-
-                if (!activeConnections[newPeerId]) {
-                    connectDataToPeer(newPeerId);
-                }
-                return;
-            }
-
             if (message.type === 'handshake') {
                 userProfiles[peerId] = peerProfile;
                 userStates[peerId] = message.state || { mic: true, deaf: false, adminMuted: false };
                 addUserCard(peerId, peerProfile, false);
                 evaluateVoiceCall(peerId);
 
-                if (isTrueAdmin) {
-                    sendToPeer(peerId, { type: 'claim_true_admin', id: myId, deviceId: myProfile.deviceId, isTrueAdmin: true });
+                // Знакомим новичка с остальными участниками
+                const knownPeers = Object.keys(activeConnections).filter(id => id !== peerId);
+                if (knownPeers.length > 0) {
+                    sendToPeer(peerId, { type: 'mesh_peer_list', peers: knownPeers });
                 }
                 return;
             }
@@ -1104,6 +1060,7 @@
 
         function evaluateVoiceCall(remoteId) {
             if (!peer || !localStream || activeCalls[remoteId]) return;
+            // Детерминированный созвон: звонит только старший по ID
             if (shouldInitiateCall(myId, remoteId)) {
                 callVoicePeer(remoteId);
             }
@@ -1141,12 +1098,12 @@
             });
 
             peer.on('error', (err) => {
-                console.warn('Peer general warning/error:', err.type);
+                console.warn('Peer error:', err.type);
             });
         }
 
         function connectDataToPeer(remoteId) {
-            if (!peer || activeConnections[remoteId]) return;
+            if (!peer || activeConnections[remoteId] || remoteId === myId) return;
             const conn = peer.connect(remoteId, { reliable: true });
             setupDataConnection(conn);
         }
@@ -1156,26 +1113,18 @@
             activeConnections[remoteId] = conn;
 
             conn.on('open', () => {
-                if (!isRoomHost && remoteId === hostPeerId) {
-                    conn.send({
-                        type: 'join',
-                        id: myId,
-                        profile: myProfile,
-                        state: userStates[myId]
-                    });
-                } else {
-                    conn.send({
-                        type: 'handshake',
-                        id: myId,
-                        profile: myProfile,
-                        state: userStates[myId]
-                    });
-                    evaluateVoiceCall(remoteId);
-                }
+                conn.send({
+                    type: 'handshake',
+                    id: myId,
+                    profile: myProfile,
+                    state: userStates[myId]
+                });
 
                 if (isTrueAdmin) {
-                    conn.send({ type: 'claim_true_admin', id: myId, deviceId: myProfile.deviceId, isTrueAdmin: true });
+                    conn.send({ type: 'admin_claim', id: myId, isTrueAdmin: true });
                 }
+
+                evaluateVoiceCall(remoteId);
             });
 
             conn.on('data', (data) => {
@@ -1184,9 +1133,7 @@
 
             conn.on('close', () => {
                 cleanupPeer(conn.peer);
-                if (isRoomHost) {
-                    broadcastSignaling({ type: 'peer_left', id: conn.peer });
-                }
+                checkAndClaimDuty();
             });
         }
 
@@ -1259,7 +1206,7 @@
             } catch(e) {}
         }
 
-        // 1. ЛОКАЛЬНЫЙ ДЕТЕКТОР РЕЧИ (ПОДСВЕТКА СВОЕЙ АВАТАРКИ)
+        // ЛОКАЛЬНЫЙ ДЕТЕКТОР РЕЧИ (ПОДСВЕТКА СВОЕЙ АВАТАРКИ)
         function startLocalSpeakingDetector() {
             if (!localStream) return;
             try {
@@ -1312,125 +1259,113 @@
             }
         }
 
-        // 1 & 2. ФИКС: ТАЙМ-АУТ НА 2 СЕКУНДЫ + ОБЪЯВЛЕНИЕ ХОСТОМ / RECONNECT TRUE ADMIN
-        function startPeerConnection() {
-            hostPeerId = activeRoom + '_host';
+        // 1. АВТОНОМНАЯ MESH-СЕТЬ И СКРЫТЫЙ "ДЕЖУРНЫЙ КООРДИНАТОР"
+        function startAutonomousMesh() {
+            // Формат ID: roomID + "-user-" + random
+            myId = activeRoom + "-user-" + Math.random().toString(36).substring(2, 9);
             isTrueAdmin = checkTrueAdminStatus();
+            myProfile.isAdmin = isTrueAdmin;
 
-            let connectionEstablished = false;
-            let hostCandidatePeer = null;
+            peer = new Peer(myId, PEER_CONFIG);
 
-            // Если это возврат True Admin, принудительно дисконнектим старый зависший Peer
-            if (peer) {
-                try { peer.disconnect(); peer.destroy(); } catch (e) {}
-                peer = null;
-            }
-
-            const becomeHost = () => {
-                if (connectionEstablished) return;
-                connectionEstablished = true;
-
-                isRoomHost = true;
-                myId = hostPeerId;
-                myProfile.isAdmin = true;
-
-                if (!localStorage.getItem('voiceup_admin_hwid_' + activeRoom)) {
-                    localStorage.setItem('voiceup_admin_hwid_' + activeRoom, myProfile.deviceId);
-                    localStorage.setItem('voiceup_is_true_admin_' + activeRoom, 'true');
-                    isTrueAdmin = true;
-                }
-
+            peer.on('open', () => {
                 updateRoomHeaderUI();
                 addUserCard(myId, myProfile, true);
                 bindPeerEvents();
                 startLocalSpeakingDetector();
 
-                // Оповещаем о переподключении админа
-                broadcastSignaling({
-                    type: 'admin-reconnected',
-                    newAdminId: myId,
-                    isTrueAdmin: isTrueAdmin
+                // Ищем текущего Дежурного координатора
+                discoverAndConnectToRoom();
+            });
+        }
+
+        function getDutyBeaconId() {
+            return activeRoom + "-duty";
+        }
+
+        // Скрытая роль Дежурного координатора
+        function takeDutyCoordinatorRole() {
+            if (isDutyCoordinator || dutyPeer) return;
+            const beaconId = getDutyBeaconId();
+
+            dutyPeer = new Peer(beaconId, PEER_CONFIG);
+            dutyPeer.on('open', () => {
+                isDutyCoordinator = true;
+                dutyPeer.on('connection', (conn) => {
+                    conn.on('open', () => {
+                        // Сообщаем новичку наш персональный ID и список всех активных участников
+                        conn.send({
+                            type: 'duty_welcome',
+                            dutyUserId: myId,
+                            peers: Object.keys(activeConnections)
+                        });
+                    });
                 });
-            };
-
-            const becomeGuest = () => {
-                if (connectionEstablished) return;
-                connectionEstablished = true;
-
-                if (hostCandidatePeer) {
-                    try { hostCandidatePeer.destroy(); } catch (e) {}
-                }
-
-                isRoomHost = false;
-                myProfile.isAdmin = isTrueAdmin;
-                myId = activeRoom + '_g_' + Math.random().toString(36).substring(2, 8);
-                updateRoomHeaderUI();
-
-                peer = new Peer(myId, {
-                    config: { 
-                        iceServers: [
-                            { urls: 'stun:stun.l.google.com:19302' }, 
-                            { urls: 'stun:stun1.l.google.com:19302' },
-                            { urls: 'stun:stun2.l.google.com:19302' }
-                        ] 
-                    }
-                });
-
-                peer.on('open', () => {
-                    addUserCard(myId, myProfile, true);
-                    bindPeerEvents();
-                    startLocalSpeakingDetector();
-                    connectDataToPeer(hostPeerId);
-                });
-
-                // Если гость не может подключиться к хосту за 2.5 секунды, хост завис — становимся новым хостом!
-                setTimeout(() => {
-                    if (!activeConnections[hostPeerId] || !activeConnections[hostPeerId].open) {
-                        if (Object.keys(activeConnections).length === 0) {
-                            try { peer.destroy(); } catch(e) {}
-                            connectionEstablished = false;
-                            becomeHost();
-                        }
-                    }
-                }, 2500);
-            };
-
-            // Пробуем зарегистрироваться как Хост
-            hostCandidatePeer = new Peer(hostPeerId, {
-                config: { 
-                    iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' }, 
-                        { urls: 'stun:stun1.l.google.com:19302' },
-                        { urls: 'stun:stun2.l.google.com:19302' }
-                    ] 
-                }
             });
 
-            // Тайм-аут 2 секунды: если за 2 секунды ответ от PeerJS не получен, объявляем себя хостом
-            const hostInitTimeout = setTimeout(() => {
-                if (!connectionEstablished) {
-                    if (hostCandidatePeer && hostCandidatePeer.open) {
-                        peer = hostCandidatePeer;
-                        becomeHost();
-                    } else {
-                        becomeGuest();
-                    }
-                }
-            }, 2000);
-
-            hostCandidatePeer.on('open', (id) => {
-                clearTimeout(hostInitTimeout);
-                peer = hostCandidatePeer;
-                becomeHost();
-            });
-
-            hostCandidatePeer.on('error', (err) => {
-                clearTimeout(hostInitTimeout);
+            dutyPeer.on('error', (err) => {
                 if (err.type === 'unavailable-id') {
-                    becomeGuest();
-                } else {
-                    // При любой другой ошибке сети/сервера объявляем гостем или пробуем резерв
-                    becomeGuest();
+                    // Кто-то уже занял дежурство — это нормально
+                    isDutyCoordinator = false;
+                    dutyPeer = null;
+                }
+            });
+        }
+
+        // Автоматическая передача роли Дежурного при выходе кого-то
+        function checkAndClaimDuty() {
+            if (isDutyCoordinator) return;
+            const allPeerIds = [myId, ...Object.keys(activeConnections)].sort();
+            // Если мы первый в отсортированном списке оставшихся пиров — берем дежурство
+            if (allPeerIds[0] === myId) {
+                takeDutyCoordinatorRole();
+            }
+        }
+
+        function discoverAndConnectToRoom() {
+            const beaconId = getDutyBeaconId();
+            let resolved = false;
+
+            // Пробуем подключиться к текущему Дежурному
+            const probeConn = peer.connect(beaconId, { reliable: true });
+
+            const timer = setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    // Никто не ответил за 1.8с — комната пуста, становимся первым Дежурным!
+                    takeDutyCoordinatorRole();
+                }
+            }, 1800);
+
+            probeConn.on('open', () => {
+                clearTimeout(timer);
+                resolved = true;
+            });
+
+            probeConn.on('data', (data) => {
+                if (data.type === 'duty_welcome') {
+                    clearTimeout(timer);
+                    resolved = true;
+                    // Соединяемся с самим Дежурным по его личному ID
+                    if (data.dutyUserId && data.dutyUserId !== myId) {
+                        connectDataToPeer(data.dutyUserId);
+                    }
+                    // Соединяемся со всеми участниками комнаты
+                    if (Array.isArray(data.peers)) {
+                        data.peers.forEach(peerId => {
+                            if (peerId !== myId) connectDataToPeer(peerId);
+                        });
+                    }
+                    // Закрываем зонд-соединение
+                    try { probeConn.close(); } catch(e) {}
+                }
+            });
+
+            probeConn.on('error', () => {
+                if (!resolved) {
+                    clearTimeout(timer);
+                    resolved = true;
+                    takeDutyCoordinatorRole();
                 }
             });
         }
@@ -1705,7 +1640,7 @@
         };
 
         window.sendAdminAction = (action, targetId) => {
-            if (!myProfile.isAdmin) return; 
+            if (!isTrueAdmin) return; 
             const targetDeviceId = userProfiles[targetId]?.deviceId || 'unknown';
             if (action === 'kick') { 
                 bannedDevices[targetDeviceId] = true; 
@@ -1768,12 +1703,16 @@
         function leaveRoom() { 
             broadcastSignaling({ type: 'leave', id: myId });
             if (localStream) localStream.getTracks().forEach(track => track.stop()); 
+            if (dutyPeer) { try { dutyPeer.destroy(); } catch(e) {} }
             document.getElementById('room-screen').innerHTML = ''; 
             window.location.href = window.location.pathname; 
         }
         
         disconnectBtn.onclick = leaveRoom; 
-        window.addEventListener('beforeunload', () => { broadcastSignaling({ type: 'leave', id: myId }); });
+        window.addEventListener('beforeunload', () => { 
+            broadcastSignaling({ type: 'leave', id: myId });
+            if (dutyPeer) { try { dutyPeer.destroy(); } catch(e) {} }
+        });
         
         window.addEventListener('keydown', (e) => { 
             if (isAssigningMicHotkey) { micHotkey = formatKey(e.key); if (micHotkey) localStorage.setItem('voiceup_hotkey', micHotkey); isAssigningMicHotkey = false; micHotkeyBtn.classList.remove('listening'); updateHotkeysUI(); e.preventDefault(); return; } 
@@ -1943,7 +1882,7 @@
                 card.querySelector('.loc-mute-btn').className = `loc-mute-btn ${locSet.muted ? 'muted' : ''}`;
                 
                 const adminControls = card.querySelector('.admin-controls');
-                if (myProfile.isAdmin) {
+                if (isTrueAdmin) {
                     adminControls.style.display = 'flex'; 
                     const adminMuteBtn = card.querySelector('.admin-mute-btn'); 
                     if (adminMuteBtn) adminMuteBtn.innerText = state.adminMuted ? dict[currentLang].unmuteMic : dict[currentLang].muteMic; 
@@ -2042,7 +1981,8 @@
                     if(myProfile.avatar) profileBtn.innerHTML = `<img src="${myProfile.avatar}">`; 
                 }, 350);
                 
-                startPeerConnection();
+                // Запуск автономной Mesh-сети
+                startAutonomousMesh();
             } catch (err) { 
                 console.error("Audio access error:", err);
                 alert(dict[currentLang].needMic + "\n" + (err.message || '')); 
