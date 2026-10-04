@@ -18,7 +18,7 @@
         .lang-switch span { cursor: pointer; transition: color 0.2s; }
         .lang-switch span.active { color: var(--text-main); font-weight: 500; }
         #room-screen { flex: 1; padding: 20px; padding-bottom: 160px; display: flex; flex-wrap: wrap; align-content: center; align-items: center; gap: 20px; justify-content: center; opacity: 0; transition: opacity 0.5s ease; overflow-y: auto; height: 100%; }
-        #join-screen { position: absolute; background: var(--bg); padding: 40px; text-align: center; z-index: 100; display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 400px; }
+        #join-screen { position: absolute; background: var(--bg); padding: 40px; text-align: center; z-index: 100; display: flex; flex-direction: column; gap: 15px; width: 100%; max-width: 400px; }
         h1 { font-size: 28px; font-weight: 500; text-transform: lowercase; }
         input[type="text"] { background-color: var(--bg-secondary); color: var(--text-main); border: 1px solid #333; padding: 16px; font-size: 16px; border-radius: 4px; width: 100%; outline: none; text-align: center; transition: border-color 0.2s; }
         input[type="text"]:focus { border-color: #666; }
@@ -114,6 +114,7 @@
         #admin-notifications { position: absolute; top: 80px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 2000; }
         .appeal-card { background: var(--bg-secondary); border: 1px solid #333; border-radius: 8px; padding: 15px; box-shadow: 0 8px 24px rgba(0,0,0,0.8); width: 280px; animation: slideIn 0.3s ease; text-align: left; }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .room-indicator { font-size: 12px; color: var(--text-muted); letter-spacing: 1px; }
     </style>
 </head>
 <body>
@@ -143,6 +144,7 @@
 
     <div id="join-screen">
         <h1 id="welcome-title">добро пожаловать в voiceup</h1>
+        <div id="roomStatusDisplay" class="room-indicator">определение комнаты...</div>
         <input type="text" id="nicknameInput" placeholder="введите ваш никнейм" autocomplete="off" maxlength="15">
         <button id="startBtn" class="primary-btn">войти</button>
     </div>
@@ -215,27 +217,39 @@
         </div>
     </div>
 
-    <!-- Контейнер для скрытых входящих аудио -->
     <div id="webrtc-audio-container" style="display:none;"></div>
 
-    <!-- СКРИПТ ВНИЗУ, ЧТОБЫ ВСЕ КНОПКИ И ПОЛЯ БЫЛИ НАЙДЕНЫ -->
     <script>
-        // 1. ОПРЕДЕЛЕНИЕ ХОСТА И КОМНАТЫ ПО ХЭШУ ССЫЛКИ
-        let roomCode = window.location.hash.replace('#', '').trim();
+        // === 1. ЖЕЛЕЗНЫЙ ПАРСИНГ КОМНАТЫ (ИЗ ?room= ИЛИ ИЗ #) ===
+        const urlParams = new URLSearchParams(window.location.search);
+        let roomCode = urlParams.get('room') || window.location.hash.replace('#', '').trim();
+        
         let isRoomHost = false;
         let hostPeerId = "";
         let myId = "";
 
         if (!roomCode) {
+            // МЫ ХОСТ (создаем комнату)
             isRoomHost = true;
-            roomCode = 'vu' + Math.random().toString(36).substring(2, 8);
+            roomCode = 'vup' + Math.random().toString(36).substring(2, 7);
             hostPeerId = roomCode;
             myId = roomCode;
-            window.location.hash = roomCode;
+            // Ставим параметр в адресную строку без перезагрузки
+            window.history.replaceState(null, '', window.location.pathname + '?room=' + roomCode);
         } else {
+            // МЫ ГОСТЬ (подключаемся к хосту)
             isRoomHost = false;
             hostPeerId = roomCode;
-            myId = roomCode + '_' + Math.random().toString(36).substring(2, 8);
+            myId = roomCode + 'p' + Math.random().toString(36).substring(2, 6);
+        }
+
+        const roomStatusDisplay = document.getElementById('roomStatusDisplay');
+        if (isRoomHost) {
+            roomStatusDisplay.innerText = "создание комнаты: " + roomCode;
+            roomStatusDisplay.style.color = "var(--success)";
+        } else {
+            roomStatusDisplay.innerText = "вход в комнату: " + roomCode;
+            roomStatusDisplay.style.color = "var(--text-muted)";
         }
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -275,7 +289,6 @@
         let micEnabled = true; let adminMuted = false; let soundEnabled = true;
         let isAssigningMicHotkey = false; let isAssigningDeafenHotkey = false;
 
-        // ПЕРЕСЫЛКА СООБЩЕНИЙ ПО P2P СЕТКЕ
         function broadcastSignaling(msgObj) {
             for (const pid in activeConnections) {
                 if (activeConnections[pid] && activeConnections[pid].open) {
@@ -357,6 +370,7 @@
                 userStates[peerId] = message.state || {mic: true, deaf: false, adminMuted: false};
                 updateCardVisuals(peerId, peerProfile, false);
 
+                // Отправляем ответ
                 sendToPeer(peerId, { 
                     type: 'hello', 
                     target: peerId, 
@@ -415,11 +429,18 @@
                 });
                 activeCalls[call.peer] = call;
             });
+
+            peer.on('error', (err) => {
+                console.error("PeerJS error:", err);
+                if (err.type === 'peer-unavailable') {
+                    alert("Создатель комнаты еще не зашел или ссылка неверная!");
+                }
+            });
         }
 
         function connectDataToPeer(remoteId) {
             if (activeConnections[remoteId]) return;
-            const conn = peer.connect(remoteId);
+            const conn = peer.connect(remoteId, { reliable: true });
             setupDataConnection(conn);
         }
 
@@ -432,6 +453,7 @@
                     profile: myProfile,
                     state: userStates[myId]
                 });
+                callVoicePeer(conn.peer);
             });
             conn.on('data', (data) => {
                 handleIncomingSignal(conn.peer, data);
@@ -522,7 +544,6 @@
             else if (action === 'chat_msg') { playTone('sine', 600, now, 0.05, 800); playTone('sine', 600, now + 0.06, 0.05, 800); }
         }
 
-        // ПОЛУЧЕНИЕ ЭЛЕМЕНТОВ DOM
         const elWelcome = document.getElementById('welcome-title'); 
         const elInput = document.getElementById('nicknameInput');
         const elBtn = document.getElementById('startBtn'); 
@@ -614,13 +635,15 @@
         }
         document.getElementById('lang-ru').onclick = () => setLanguage('ru'); document.getElementById('lang-en').onclick = () => setLanguage('en');
 
+        // КНОПКА КОПИРОВАНИЯ ССЫЛКИ С ЖЕЛЕЗНЫМ ПАРАМЕТРОМ ?room=
         inviteBox.onclick = async () => { 
-            let linkToCopy = window.location.href;
+            // Собираем правильную ссылку с параметром ?room=КОД
+            const cleanUrl = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/?room=' + roomCode;
             try { 
-                await navigator.clipboard.writeText(linkToCopy); 
+                await navigator.clipboard.writeText(cleanUrl); 
                 showCopiedSuccess();
             } catch (err) {
-                const tempInput = document.createElement("input"); tempInput.value = linkToCopy; document.body.appendChild(tempInput); tempInput.select();
+                const tempInput = document.createElement("input"); tempInput.value = cleanUrl; document.body.appendChild(tempInput); tempInput.select();
                 try { document.execCommand("copy"); showCopiedSuccess(); } catch (e) {} document.body.removeChild(tempInput);
             } 
         };
@@ -935,7 +958,6 @@
             }
         };
 
-        // Запуск языковой локализации по умолчанию
         setLanguage('ru');
     </script>
 </body>
