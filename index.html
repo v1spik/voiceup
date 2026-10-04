@@ -20,15 +20,22 @@
             --button-hover: #2a2a2a; 
             --success: #50fa7b; 
             --danger: #ff5555; 
-            --purple-accent: #a855f7;
-            --purple-glow: rgba(168, 85, 247, 0.2);
-            --purple-border: rgba(168, 85, 247, 0.4);
+            --border-color: #282828;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; font-weight: 400; }
-        body { background-color: var(--bg); color: var(--text-main); height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+        body { 
+            background-color: var(--bg); 
+            color: var(--text-main); 
+            height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            overflow: hidden; 
+            position: relative; 
+        }
         .app-name { position: absolute; top: 20px; font-size: 15px; font-weight: 700; letter-spacing: 2px; text-transform: lowercase; color: var(--text-muted); }
         
-        #profile-btn { position: absolute; top: 16px; left: 16px; width: 34px; height: 34px; border-radius: 50%; background-color: var(--button-bg); border: 1px solid #282828; color: var(--text-muted); display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 200; transition: 0.2s; overflow: hidden; }
+        #profile-btn { position: absolute; top: 16px; left: 16px; width: 34px; height: 34px; border-radius: 50%; background-color: var(--button-bg); border: 1px solid var(--border-color); color: var(--text-muted); display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 200; transition: 0.2s; overflow: hidden; }
         #profile-btn:hover { border-color: #555; color: var(--text-main); }
         #profile-btn img { width: 100%; height: 100%; object-fit: cover; }
         
@@ -36,7 +43,7 @@
         .lang-switch span { cursor: pointer; transition: color 0.2s; }
         .lang-switch span.active { color: var(--text-main); font-weight: 500; }
 
-        /* Верхняя панель голосовой комнаты */
+        /* Шапка голосовой комнаты */
         #room-header {
             position: absolute;
             top: 16px;
@@ -44,7 +51,7 @@
             align-items: center;
             gap: 8px;
             background: var(--bg-secondary);
-            border: 1px solid #282828;
+            border: 1px solid var(--border-color);
             padding: 5px 12px;
             border-radius: 24px;
             z-index: 150;
@@ -60,7 +67,7 @@
         
         .header-btn {
             background: var(--button-bg);
-            border: 1px solid #282828;
+            border: 1px solid var(--border-color);
             color: var(--text-muted);
             border-radius: 14px;
             padding: 4px 9px;
@@ -73,13 +80,13 @@
         }
         .header-btn:hover { color: var(--text-main); border-color: #555; background: var(--button-hover); }
         .header-btn svg { width: 12px; height: 12px; }
-        .header-btn.active { color: var(--purple-accent); border-color: var(--purple-border); box-shadow: 0 0 10px var(--purple-glow); }
+        .header-btn.active { color: var(--success); border-color: rgba(80, 250, 123, 0.4); }
 
         #room-screen { 
             flex: 1; 
             padding: 20px; 
             padding-top: 80px;
-            padding-bottom: 110px; 
+            padding-bottom: 120px; 
             display: flex; 
             flex-wrap: wrap; 
             align-content: center; 
@@ -90,6 +97,8 @@
             transition: opacity 0.3s ease; 
             overflow-y: auto; 
             height: 100%; 
+            width: 100%;
+            -webkit-overflow-scrolling: touch;
         }
 
         #join-screen { 
@@ -109,7 +118,7 @@
         input[type="text"] { 
             background-color: var(--bg-secondary); 
             color: var(--text-main); 
-            border: 1px solid #282828; 
+            border: 1px solid var(--border-color); 
             padding: 13px; 
             font-size: 14px; 
             border-radius: 6px; 
@@ -138,7 +147,7 @@
         button.secondary-btn { 
             background-color: transparent; 
             color: var(--text-muted); 
-            border: 1px solid #282828; 
+            border: 1px solid var(--border-color); 
             padding: 11px 0; 
             font-size: 12px; 
             font-weight: 500; 
@@ -150,30 +159,28 @@
         }
         button.secondary-btn:hover { color: var(--text-main); border-color: #555; }
 
-        /* Фиолетовый неоновый дизайн для закрепленных комнат */
+        /* Зеленый минималистичный дизайн слотов комнат */
         #pinned-rooms-section {
             display: none;
             flex-direction: column;
             gap: 8px;
             margin-top: 8px;
-            border-top: 1px solid rgba(168, 85, 247, 0.2);
+            border-top: 1px solid var(--border-color);
             padding-top: 12px;
             text-align: left;
         }
         .pinned-rooms-title {
             font-size: 11px;
-            color: var(--purple-accent);
-            text-shadow: 0 0 8px var(--purple-glow);
+            color: var(--text-muted);
             font-weight: 500;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            letter-spacing: 0.5px;
         }
         .pinned-list { display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; }
         .pinned-room-btn {
-            background: rgba(168, 85, 247, 0.06);
-            border: 1px solid rgba(168, 85, 247, 0.25);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
             color: var(--text-main);
             padding: 8px 12px;
             border-radius: 6px;
@@ -186,11 +193,10 @@
             text-align: left;
         }
         .pinned-room-btn:hover {
-            border-color: var(--purple-accent);
-            background: rgba(168, 85, 247, 0.14);
-            box-shadow: 0 0 12px var(--purple-glow);
+            border-color: #444;
+            background: var(--button-hover);
         }
-        .pinned-room-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #f3e8ff; }
+        .pinned-room-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-main); }
         .pinned-room-del { color: var(--text-muted); padding: 2px 6px; font-size: 14px; }
         .pinned-room-del:hover { color: var(--danger); }
 
@@ -222,7 +228,7 @@
             margin-bottom: 8px; 
             text-transform: lowercase; 
             overflow: hidden; 
-            border: 2px solid #282828; 
+            border: 2px solid var(--border-color); 
             transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; 
         }
         .avatar.speaking { 
@@ -269,13 +275,11 @@
             color: var(--success);
         }
         .status-dot-pc {
-            width: 12px;
-            height: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 6px;
+            height: 6px;
+            background-color: var(--success);
+            border-radius: 50%;
         }
-        .status-dot-pc svg { width: 12px; height: 12px; color: var(--success); }
         .status-dot-mobile {
             width: 8px;
             height: 12px;
@@ -316,16 +320,16 @@
         .status-icons { display: flex; gap: 4px; margin-left: 3px; }
         .status-icons svg { width: 13px; height: 13px; color: var(--danger); }
         
-        .card-menu-btn { position: absolute; top: 4px; right: 4px; background: var(--bg-secondary); border: 1px solid #282828; color: var(--text-muted); width: 24px; height: 24px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.2s; z-index: 10; }
+        .card-menu-btn { position: absolute; top: 4px; right: 4px; background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-muted); width: 24px; height: 24px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.2s; z-index: 10; }
         .user-card:hover .card-menu-btn { opacity: 1; }
         .card-menu-btn:hover { color: var(--text-main); border-color: #555; }
         
-        .card-dropdown { position: absolute; top: 32px; right: 4px; background: var(--bg-secondary); border: 1px solid #282828; border-radius: 6px; padding: 10px; display: none; flex-direction: column; gap: 8px; z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,0.8); min-width: 150px; text-align: left; }
+        .card-dropdown { position: absolute; top: 32px; right: 4px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; display: none; flex-direction: column; gap: 8px; z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,0.8); min-width: 150px; text-align: left; }
         .card-dropdown.open { display: flex; }
         
         .local-controls { display: flex; align-items: center; gap: 8px; width: 100%; }
-        .admin-controls { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #282828; padding-top: 8px; }
-        .admin-btn { background: transparent; color: var(--text-muted); border: 1px solid #282828; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: 0.2s; text-transform: lowercase; text-align: left; }
+        .admin-controls { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border-color); padding-top: 8px; }
+        .admin-btn { background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: 0.2s; text-transform: lowercase; text-align: left; }
         .admin-btn:hover { color: var(--text-main); border-color: #555; background: rgba(255,255,255,0.05); }
         .admin-btn.danger:hover { color: var(--danger); border-color: var(--danger); }
         
@@ -334,11 +338,11 @@
         .loc-mute-btn.muted { color: var(--danger); }
         .loc-mute-btn svg { width: 16px; height: 16px; }
         
-        .loc-vol { -webkit-appearance: none; flex: 1; height: 4px; background: #282828; border-radius: 2px; outline: none; cursor: pointer; }
+        .loc-vol { -webkit-appearance: none; flex: 1; height: 4px; background: var(--border-color); border-radius: 2px; outline: none; cursor: pointer; }
         .loc-vol::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted); }
         
         /* Нижняя панель */
-        #controls-panel { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; background-color: var(--bg-secondary); border: 1px solid #282828; border-radius: 10px; padding: 6px 8px; gap: 8px; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.6); align-items: center; }
+        #controls-panel { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 6px 8px; gap: 8px; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.6); align-items: center; }
         .icon-btn { width: 40px; height: 40px; border-radius: 6px; background-color: var(--button-bg); border: none; color: var(--text-main); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; position: relative; }
         .icon-btn:hover { background-color: var(--button-hover); }
         .icon-btn svg { width: 20px; height: 20px; stroke-width: 2; }
@@ -353,7 +357,7 @@
         .leave-btn { background-color: var(--danger); color: var(--text-main); }
         .leave-btn:hover { background-color: #ff3333; }
         
-        .hotkey-btn { background-color: transparent; color: var(--text-muted); border: none; border-left: 1px solid #282828; padding: 0 8px; font-size: 11px; font-weight: 500; cursor: pointer; transition: color 0.2s; min-width: 32px; text-transform: uppercase; display: flex; align-items: center; justify-content: center; }
+        .hotkey-btn { background-color: transparent; color: var(--text-muted); border: none; border-left: 1px solid var(--border-color); padding: 0 8px; font-size: 11px; font-weight: 500; cursor: pointer; transition: color 0.2s; min-width: 32px; text-transform: uppercase; display: flex; align-items: center; justify-content: center; }
         .hotkey-btn:hover { color: var(--text-main); }
         .hotkey-btn.listening { color: var(--success); }
         .hotkey-btn svg { width: 14px; height: 14px; stroke-width: 2; }
@@ -364,7 +368,7 @@
 
         /* QR Код модалка */
         #qr-modal { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px); display: none; justify-content: center; align-items: center; z-index: 500; }
-        .qr-card { background: var(--bg-secondary); border: 1px solid #282828; border-radius: 12px; padding: 22px; display: flex; flex-direction: column; align-items: center; gap: 14px; box-shadow: 0 16px 40px rgba(0,0,0,0.8); position: relative; max-width: 280px; width: 90vw; }
+        .qr-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 22px; display: flex; flex-direction: column; align-items: center; gap: 14px; box-shadow: 0 16px 40px rgba(0,0,0,0.8); position: relative; max-width: 280px; width: 90vw; }
         .qr-close-btn { position: absolute; top: 8px; right: 10px; background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; line-height: 1; }
         .qr-close-btn:hover { color: var(--text-main); }
         .qr-box { background: #ffffff; padding: 10px; border-radius: 8px; display: flex; justify-content: center; align-items: center; }
@@ -372,14 +376,14 @@
 
         /* Модалка профиля */
         #profile-modal { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 300; }
-        .modal-content { background: var(--bg); border: 1px solid #282828; padding: 24px; border-radius: 8px; width: 290px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .modal-content { background: var(--bg); border: 1px solid var(--border-color); padding: 24px; border-radius: 8px; width: 290px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
         .avatar-upload { width: 72px; height: 72px; border-radius: 50%; background-color: var(--bg-secondary); border: 1px dashed #444; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative; }
         .avatar-upload img { width: 100%; height: 100%; object-fit: cover; }
         .avatar-upload span { font-size: 11px; color: var(--text-muted); position: absolute; }
         #avatarInput { display: none; }
         #removeAvatarBtn { color: var(--danger); font-size: 11px; cursor: pointer; margin-top: -6px; display: none; }
         #removeAvatarBtn:hover { text-decoration: underline; }
-        input[type="color"] { -webkit-appearance: none; border: 1px solid #282828; width: 100%; height: 36px; border-radius: 4px; cursor: pointer; padding: 0; background-color: var(--bg-secondary); }
+        input[type="color"] { -webkit-appearance: none; border: 1px solid var(--border-color); width: 100%; height: 36px; border-radius: 4px; cursor: pointer; padding: 0; background-color: var(--bg-secondary); }
         #resetProfileBtn { color: var(--text-muted); font-size: 11px; cursor: pointer; text-decoration: underline; margin-top: -4px; }
         #resetProfileBtn:hover { color: var(--danger); }
         .modal-buttons { display: flex; gap: 8px; width: 100%; }
@@ -387,24 +391,24 @@
         /* Чат */
         #chat-panel { position: absolute; inset: 0; z-index: 1000; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s; display: flex; justify-content: center; align-items: center; padding: 16px; padding-bottom: 85px; }
         #chat-panel.open { opacity: 1; visibility: visible; }
-        .chat-inner { width: 100%; max-width: 660px; height: 100%; max-height: 80vh; background: var(--bg-secondary); border: 1px solid #282828; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.8); }
-        .chat-header { padding: 14px 18px; border-bottom: 1px solid #282828; display: flex; justify-content: space-between; align-items: center; font-weight: 500; background: #161616; font-size: 14px; }
+        .chat-inner { width: 100%; max-width: 660px; height: 100%; max-height: 80vh; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.8); }
+        .chat-header { padding: 14px 18px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; font-weight: 500; background: #161616; font-size: 14px; }
         #close-chat { background: none; border: none; color: var(--text-muted); font-size: 22px; cursor: pointer; line-height: 1; }
         #close-chat:hover { color: var(--danger); }
         #chat-messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
         .chat-msg { font-size: 13px; line-height: 1.4; word-wrap: break-word; }
         .chat-img { max-width: 100%; border-radius: 4px; margin-top: 4px; display: block; border: 1px solid #333; }
         .chat-file { display: inline-block; background: var(--button-bg); padding: 5px 8px; border-radius: 4px; color: var(--text-main); text-decoration: none; margin-top: 4px; font-size: 11px; border: 1px solid #333; }
-        .chat-input-area { padding: 10px 16px; border-top: 1px solid #282828; display: flex; gap: 8px; align-items: center; }
+        .chat-input-area { padding: 10px 16px; border-top: 1px solid var(--border-color); display: flex; gap: 8px; align-items: center; }
         .chat-input-area input[type="text"] { flex: 1; padding: 10px; font-size: 13px; text-align: left; }
         #chat-attach-btn { cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center; padding: 4px; }
         #chat-attach-btn svg { width: 18px; height: 18px; }
-        #chat-send { background: var(--button-bg); border: 1px solid #282828; color: var(--text-main); width: 38px; height: 38px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        #chat-send { background: var(--button-bg); border: 1px solid var(--border-color); color: var(--text-main); width: 38px; height: 38px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         #chat-send svg { width: 16px; height: 16px; }
         
         #banned-screen { position: absolute; inset: 0; background: var(--bg); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; padding: 20px; }
         #admin-notifications { position: absolute; top: 70px; right: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 2000; }
-        .appeal-card { background: var(--bg-secondary); border: 1px solid #282828; border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.8); width: 260px; text-align: left; }
+        .appeal-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.8); width: 260px; text-align: left; }
         
         #toast-notification {
             position: fixed;
@@ -425,10 +429,17 @@
         }
         #toast-notification.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-        /* Мобильная адаптивность */
+        /* 2. ФИКС СКРОЛЛИНГА И АДАПТИВНОСТЬ НА ТЕЛЕФОНАХ */
         @media (max-width: 768px) {
+            body { 
+                overflow-y: auto; 
+                height: 100%; 
+                min-height: 100vh;
+                -webkit-overflow-scrolling: touch; 
+            }
             .app-name { display: none; }
             #room-header {
+                position: fixed;
                 top: 10px;
                 left: 10px;
                 right: 10px;
@@ -442,7 +453,9 @@
             .header-btn { font-size: 10px; padding: 4px 7px; }
             #profile-btn { top: auto; bottom: 20px; left: 16px; z-index: 120; }
             .lang-switch { top: auto; bottom: 25px; right: 16px; }
+            
             #controls-panel {
+                position: fixed;
                 bottom: 16px;
                 padding: 4px 6px;
                 gap: 6px;
@@ -450,15 +463,23 @@
             }
             .icon-btn { width: 38px; height: 38px; }
             .hotkey-btn { display: none; }
+            
             #room-screen {
-                padding-top: 90px;
-                padding-bottom: 95px;
-                gap: 12px;
+                padding-top: 110px;
+                padding-bottom: 130px;
+                gap: 14px;
+                align-content: flex-start;
+                min-height: 100vh;
             }
             .user-card { width: 120px; height: 130px; }
-            .avatar { width: 50px; height: 50px; font-size: 15px; }
+            .avatar { width: 52px; height: 52px; font-size: 16px; }
             #qr-modal .qr-card { width: 90vw; max-width: 290px; padding: 18px; }
-            #join-screen { padding: 16px; max-width: 90vw; }
+            #join-screen { 
+                position: relative;
+                padding: 20px; 
+                max-width: 90vw; 
+                margin: auto;
+            }
         }
     </style>
 </head>
@@ -542,7 +563,7 @@
 
         <button id="startBtn" class="primary-btn trans-enter">войти</button>
 
-        <!-- Слоты закрепленных комнат (0/5) с неоновым фиолетовым стилем -->
+        <!-- Слоты закрепленных комнат (до 5) -->
         <div id="pinned-rooms-section">
             <div class="pinned-rooms-title">
                 <span id="pinned-counter-text">закрепленные комнаты (0/5)</span>
@@ -626,6 +647,8 @@
 
     <script>
         const MAX_PINNED_ROOMS = 5;
+
+        // 6. НАДЕЖНЫЕ TURN/STUN СЕРВЕРЫ ДЛЯ ПРОБИТИЯ МОБИЛЬНОГО NAT
         const PEER_CONFIG = {
             config: {
                 iceServers: [
@@ -648,8 +671,8 @@
                 pinLimitReached: "лимит закрепленных комнат (5/5)",
                 online: "на связи", 
                 you: " (вы)", 
-                guest: "участник", 
-                admin: "админ",
+                guest: "гость", 
+                host: "создатель",
                 needMic: "необходим доступ к микрофону", 
                 needNick: "введите никнейм", 
                 photo: "фото", 
@@ -693,8 +716,8 @@
                 pinLimitReached: "pinned rooms limit reached (5/5)",
                 online: "online", 
                 you: " (you)", 
-                guest: "member", 
-                admin: "admin",
+                guest: "guest", 
+                host: "host",
                 needMic: "microphone access required", 
                 needNick: "enter nickname", 
                 photo: "photo", 
@@ -753,13 +776,14 @@
 
         const myDeviceType = detectDeviceType();
 
+        // 5. ИКОНКИ УСТРОЙСТВ
         function getStatusDotHtml(deviceType) {
             if (deviceType === 'mobile') {
-                return `<div class="status-device-indicator" title="mobile"><div class="status-dot-mobile"></div></div>`;
+                return `<div class="status-device-indicator" title="телефон"><div class="status-dot-mobile"></div></div>`;
             } else if (deviceType === 'app') {
-                return `<div class="status-device-indicator" title="app"><div class="status-dot-app"></div></div>`;
+                return `<div class="status-device-indicator" title="приложение"><div class="status-dot-app"></div></div>`;
             }
-            return `<div class="status-device-indicator" title="pc"><div class="status-dot-pc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></div></div>`;
+            return `<div class="status-device-indicator" title="пк"><div class="status-dot-pc"></div></div>`;
         }
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -842,10 +866,10 @@
             roomCodeInput.value = activeRoom;
         }
 
+        let isRoomHost = false;
         let isTrueAdmin = false;
-        let isDutyCoordinator = false;
         let myId = "";
-        let dutyPeer = null;
+        let hostPeerId = "";
         let qrCodeInstance = null;
 
         function checkTrueAdminStatus() {
@@ -859,9 +883,9 @@
             pinRoomBtn.classList.toggle('active', isPinned);
             pinBtnText.innerText = isPinned ? dict[currentLang].pinnedActive : dict[currentLang].pinBtn;
 
-            if (isTrueAdmin) {
+            if (isRoomHost || isTrueAdmin) {
                 roomRoleTag.className = 'role-badge host';
-                roomRoleTag.innerText = dict[currentLang].admin;
+                roomRoleTag.innerText = dict[currentLang].host;
             } else {
                 roomRoleTag.className = 'role-badge guest';
                 roomRoleTag.innerText = dict[currentLang].guest;
@@ -904,7 +928,6 @@
         let isAssigningMicHotkey = false; 
         let isAssigningDeafenHotkey = false;
 
-        // 4. ДЕТЕРМИНИРОВАННЫЙ СОЗВОН (shouldInitiateCall)
         function shouldInitiateCall(peerA, peerB) {
             return peerA > peerB;
         }
@@ -929,42 +952,13 @@
             setTimeout(() => { toastNotif.classList.remove('show'); }, 1800);
         }
 
-        // ОБРАБОТЧИК СИГНАЛОВ MESH СЕТИ
+        // ОБРАБОТЧИК СИГНАЛОВ
         function handleIncomingSignal(remoteId, message) {
             const peerId = message.id || remoteId;
             const peerProfile = message.profile || { nick: dict[currentLang].guest, color: '#ffffff', avatar: '', deviceType: 'pc' };
 
-            // Запрос списка участников от новичка к Дежурному
-            if (message.type === 'get_mesh_peers') {
-                const allPeers = Object.keys(activeConnections).filter(id => id !== peerId);
-                sendToPeer(peerId, {
-                    type: 'mesh_peer_list',
-                    peers: allPeers
-                });
-                return;
-            }
-
-            if (message.type === 'mesh_peer_list' && Array.isArray(message.peers)) {
-                message.peers.forEach(otherId => {
-                    if (otherId !== myId && !activeConnections[otherId]) {
-                        connectDataToPeer(otherId);
-                    }
-                });
-                return;
-            }
-
-            if (message.type === 'admin_claim') {
-                if (message.isTrueAdmin) {
-                    if (userProfiles[peerId]) {
-                        userProfiles[peerId].isAdmin = true;
-                        updateCardVisuals(peerId, userProfiles[peerId], false);
-                    }
-                }
-                return;
-            }
-
-            // Проверка бана
-            if (isTrueAdmin && message.type === 'handshake') {
+            // Хост проверяет бан
+            if (myProfile.isAdmin && (message.type === 'join' || message.type === 'handshake')) {
                 if (bannedDevices[message.profile?.deviceId]) {
                     sendToPeer(peerId, { type: 'banned_reject', target: peerId, senderName: myProfile.nick });
                     return;
@@ -972,7 +966,7 @@
             }
 
             // Апелляция бана
-            if (isTrueAdmin && message.type === 'ban_appeal') {
+            if (myProfile.isAdmin && message.type === 'ban_appeal') {
                 if (ignoredAppeals[message.deviceId]) return; 
                 const notifId = `appeal-${message.deviceId}`; 
                 if (document.getElementById(notifId)) return; 
@@ -1012,7 +1006,6 @@
                 const targetToClean = message.id || peerId;
                 cleanupPeer(targetToClean);
                 playUiSound('leave');
-                checkAndClaimDuty();
                 return;
             }
 
@@ -1039,17 +1032,71 @@
                 return; 
             }
 
-            if (message.type === 'handshake') {
+            // 3. ЖЕЛЕЗНАЯ MESH СИНХРОНИЗАЦИЯ: Гость стучится к Хосту
+            if (message.type === 'join' && isRoomHost) {
+                userProfiles[peerId] = peerProfile;
+                userStates[peerId] = message.state || { mic: true, deaf: false, adminMuted: false };
+                addUserCard(peerId, peerProfile, false);
+
+                // Отправляем список всех пиров в комнате
+                const currentPeers = Object.keys(activeConnections).filter(id => id !== peerId);
+                sendToPeer(peerId, {
+                    type: 'room-state',
+                    target: peerId,
+                    id: myId,
+                    profile: myProfile,
+                    state: userStates[myId],
+                    peerList: currentPeers
+                });
+
+                // Оповещаем остальных гостей о новом участнике
+                broadcastSignaling({
+                    type: 'new-peer-announced',
+                    id: peerId,
+                    profile: peerProfile,
+                    state: userStates[peerId]
+                });
+
+                evaluateVoiceCall(peerId);
+                return;
+            }
+
+            // Гость получил от Хоста список всех участников комнаты
+            if (message.type === 'room-state' && message.target === myId) {
                 userProfiles[peerId] = peerProfile;
                 userStates[peerId] = message.state || { mic: true, deaf: false, adminMuted: false };
                 addUserCard(peerId, peerProfile, false);
                 evaluateVoiceCall(peerId);
 
-                // Знакомим новичка с остальными участниками
-                const knownPeers = Object.keys(activeConnections).filter(id => id !== peerId);
-                if (knownPeers.length > 0) {
-                    sendToPeer(peerId, { type: 'mesh_peer_list', peers: knownPeers });
+                if (Array.isArray(message.peerList)) {
+                    message.peerList.forEach(otherId => {
+                        if (otherId !== myId && !activeConnections[otherId]) {
+                            connectDataToPeer(otherId);
+                        }
+                    });
                 }
+                return;
+            }
+
+            // Оповещение о появлении нового участника
+            if (message.type === 'new-peer-announced' && message.id !== myId) {
+                const newPeerId = message.id;
+                userProfiles[newPeerId] = message.profile || peerProfile;
+                userStates[newPeerId] = message.state || { mic: true, deaf: false, adminMuted: false };
+                addUserCard(newPeerId, userProfiles[newPeerId], false);
+
+                if (!activeConnections[newPeerId]) {
+                    connectDataToPeer(newPeerId);
+                }
+                return;
+            }
+
+            // Прямое P2P-рукопожатие между гостями
+            if (message.type === 'handshake') {
+                userProfiles[peerId] = peerProfile;
+                userStates[peerId] = message.state || { mic: true, deaf: false, adminMuted: false };
+                addUserCard(peerId, peerProfile, false);
+                evaluateVoiceCall(peerId);
                 return;
             }
 
@@ -1058,9 +1105,9 @@
             }
         }
 
+        // ДЕТЕРМИНИРОВАННЫЙ ЗВОНОК (Звонит строго один)
         function evaluateVoiceCall(remoteId) {
             if (!peer || !localStream || activeCalls[remoteId]) return;
-            // Детерминированный созвон: звонит только старший по ID
             if (shouldInitiateCall(myId, remoteId)) {
                 callVoicePeer(remoteId);
             }
@@ -1076,7 +1123,7 @@
                         attachRemoteAudio(remoteId, stream);
                     });
                     call.on('close', () => { cleanupCall(remoteId); });
-                    call.on('error', (e) => { console.error('Call error with:', remoteId, e); });
+                    call.on('error', (e) => { console.error('Call error:', remoteId, e); });
                 }
             } catch(e) {
                 console.error('Failed to initiate voice call:', e);
@@ -1098,7 +1145,7 @@
             });
 
             peer.on('error', (err) => {
-                console.warn('Peer error:', err.type);
+                console.warn('Peer notice:', err.type);
             });
         }
 
@@ -1113,18 +1160,22 @@
             activeConnections[remoteId] = conn;
 
             conn.on('open', () => {
-                conn.send({
-                    type: 'handshake',
-                    id: myId,
-                    profile: myProfile,
-                    state: userStates[myId]
-                });
-
-                if (isTrueAdmin) {
-                    conn.send({ type: 'admin_claim', id: myId, isTrueAdmin: true });
+                if (!isRoomHost && remoteId === hostPeerId) {
+                    conn.send({
+                        type: 'join',
+                        id: myId,
+                        profile: myProfile,
+                        state: userStates[myId]
+                    });
+                } else {
+                    conn.send({
+                        type: 'handshake',
+                        id: myId,
+                        profile: myProfile,
+                        state: userStates[myId]
+                    });
+                    evaluateVoiceCall(remoteId);
                 }
-
-                evaluateVoiceCall(remoteId);
             });
 
             conn.on('data', (data) => {
@@ -1133,7 +1184,9 @@
 
             conn.on('close', () => {
                 cleanupPeer(conn.peer);
-                checkAndClaimDuty();
+                if (isRoomHost) {
+                    broadcastSignaling({ type: 'peer_left', id: conn.peer });
+                }
             });
         }
 
@@ -1259,113 +1312,69 @@
             }
         }
 
-        // 1. АВТОНОМНАЯ MESH-СЕТЬ И СКРЫТЫЙ "ДЕЖУРНЫЙ КООРДИНАТОР"
-        function startAutonomousMesh() {
-            // Формат ID: roomID + "-user-" + random
-            myId = activeRoom + "-user-" + Math.random().toString(36).substring(2, 9);
+        // 3. ЖЕЛЕЗНАЯ СИНХРОНИЗАЦИЯ: Хост `${roomID}_host` + Гости `${roomID}_guest_${rand}`
+        function startPeerConnection() {
+            hostPeerId = activeRoom + '_host';
             isTrueAdmin = checkTrueAdminStatus();
-            myProfile.isAdmin = isTrueAdmin;
 
-            peer = new Peer(myId, PEER_CONFIG);
+            let connectionEstablished = false;
 
-            peer.on('open', () => {
+            const becomeHost = () => {
+                if (connectionEstablished) return;
+                connectionEstablished = true;
+
+                isRoomHost = true;
+                myId = hostPeerId;
+                myProfile.isAdmin = true;
+
+                if (!localStorage.getItem('voiceup_admin_hwid_' + activeRoom)) {
+                    localStorage.setItem('voiceup_admin_hwid_' + activeRoom, myProfile.deviceId);
+                    localStorage.setItem('voiceup_is_true_admin_' + activeRoom, 'true');
+                    isTrueAdmin = true;
+                }
+
                 updateRoomHeaderUI();
                 addUserCard(myId, myProfile, true);
                 bindPeerEvents();
                 startLocalSpeakingDetector();
+            };
 
-                // Ищем текущего Дежурного координатора
-                discoverAndConnectToRoom();
-            });
-        }
+            const becomeGuest = () => {
+                if (connectionEstablished) return;
+                connectionEstablished = true;
 
-        function getDutyBeaconId() {
-            return activeRoom + "-duty";
-        }
+                isRoomHost = false;
+                myProfile.isAdmin = false;
+                myId = activeRoom + '_guest_' + Math.random().toString(36).substring(2, 7);
+                updateRoomHeaderUI();
 
-        // Скрытая роль Дежурного координатора
-        function takeDutyCoordinatorRole() {
-            if (isDutyCoordinator || dutyPeer) return;
-            const beaconId = getDutyBeaconId();
+                peer = new Peer(myId, PEER_CONFIG);
 
-            dutyPeer = new Peer(beaconId, PEER_CONFIG);
-            dutyPeer.on('open', () => {
-                isDutyCoordinator = true;
-                dutyPeer.on('connection', (conn) => {
-                    conn.on('open', () => {
-                        // Сообщаем новичку наш персональный ID и список всех активных участников
-                        conn.send({
-                            type: 'duty_welcome',
-                            dutyUserId: myId,
-                            peers: Object.keys(activeConnections)
-                        });
-                    });
+                peer.on('open', () => {
+                    addUserCard(myId, myProfile, true);
+                    bindPeerEvents();
+                    startLocalSpeakingDetector();
+                    // Сразу стучимся напрямую к Хосту комнаты
+                    connectDataToPeer(hostPeerId);
                 });
+            };
+
+            // Пробуем зарегистрироваться как Хост комнаты
+            const testHostPeer = new Peer(hostPeerId, PEER_CONFIG);
+
+            testHostPeer.on('open', () => {
+                peer = testHostPeer;
+                becomeHost();
             });
 
-            dutyPeer.on('error', (err) => {
+            testHostPeer.on('error', (err) => {
                 if (err.type === 'unavailable-id') {
-                    // Кто-то уже занял дежурство — это нормально
-                    isDutyCoordinator = false;
-                    dutyPeer = null;
-                }
-            });
-        }
-
-        // Автоматическая передача роли Дежурного при выходе кого-то
-        function checkAndClaimDuty() {
-            if (isDutyCoordinator) return;
-            const allPeerIds = [myId, ...Object.keys(activeConnections)].sort();
-            // Если мы первый в отсортированном списке оставшихся пиров — берем дежурство
-            if (allPeerIds[0] === myId) {
-                takeDutyCoordinatorRole();
-            }
-        }
-
-        function discoverAndConnectToRoom() {
-            const beaconId = getDutyBeaconId();
-            let resolved = false;
-
-            // Пробуем подключиться к текущему Дежурному
-            const probeConn = peer.connect(beaconId, { reliable: true });
-
-            const timer = setTimeout(() => {
-                if (!resolved) {
-                    resolved = true;
-                    // Никто не ответил за 1.8с — комната пуста, становимся первым Дежурным!
-                    takeDutyCoordinatorRole();
-                }
-            }, 1800);
-
-            probeConn.on('open', () => {
-                clearTimeout(timer);
-                resolved = true;
-            });
-
-            probeConn.on('data', (data) => {
-                if (data.type === 'duty_welcome') {
-                    clearTimeout(timer);
-                    resolved = true;
-                    // Соединяемся с самим Дежурным по его личному ID
-                    if (data.dutyUserId && data.dutyUserId !== myId) {
-                        connectDataToPeer(data.dutyUserId);
-                    }
-                    // Соединяемся со всеми участниками комнаты
-                    if (Array.isArray(data.peers)) {
-                        data.peers.forEach(peerId => {
-                            if (peerId !== myId) connectDataToPeer(peerId);
-                        });
-                    }
-                    // Закрываем зонд-соединение
-                    try { probeConn.close(); } catch(e) {}
-                }
-            });
-
-            probeConn.on('error', () => {
-                if (!resolved) {
-                    clearTimeout(timer);
-                    resolved = true;
-                    takeDutyCoordinatorRole();
+                    // Хост уже есть в сети, заходим как Гость
+                    try { testHostPeer.destroy(); } catch(e) {}
+                    becomeGuest();
+                } else {
+                    try { testHostPeer.destroy(); } catch(e) {}
+                    becomeGuest();
                 }
             });
         }
@@ -1521,7 +1530,7 @@
         copyRoomLinkBtn.onclick = copyRoomUrl;
         qrCopyBtn.onclick = copyRoomUrl;
 
-        // ЗАКРЕПЛЕНИЕ КОМНАТЫ В СЛОТЫ (МАКСИМУМ 5)
+        // ЗАКРЕПЛЕНИЕ КОМНАТЫ В СЛОТЫ
         pinRoomBtn.onclick = () => {
             const list = getPinnedRooms();
             const idx = list.indexOf(activeRoom);
@@ -1640,7 +1649,7 @@
         };
 
         window.sendAdminAction = (action, targetId) => {
-            if (!isTrueAdmin) return; 
+            if (!myProfile.isAdmin) return; 
             const targetDeviceId = userProfiles[targetId]?.deviceId || 'unknown';
             if (action === 'kick') { 
                 bannedDevices[targetDeviceId] = true; 
@@ -1664,10 +1673,14 @@
             broadcastSignaling({ type: 'status', id: myId, state: userStates[myId] });
         }
         
+        // 4. ФИКС МИКРОФОНА: ТОЛЬКО ПЕРЕКЛЮЧЕНИЕ ТРЕКА, БЕЗ СБРОСА СОЕДИНЕНИЯ
         function updateMicHardware() { 
             if (!localStream) return; 
             const actualMic = micEnabled && !adminMuted; 
-            localStream.getAudioTracks()[0].enabled = actualMic; 
+            const audioTracks = localStream.getAudioTracks();
+            if (audioTracks && audioTracks.length > 0) {
+                audioTracks[0].enabled = actualMic;
+            }
             micBtn.classList.toggle('off', !actualMic); 
             broadcastStatus(); 
         }
@@ -1703,7 +1716,6 @@
         function leaveRoom() { 
             broadcastSignaling({ type: 'leave', id: myId });
             if (localStream) localStream.getTracks().forEach(track => track.stop()); 
-            if (dutyPeer) { try { dutyPeer.destroy(); } catch(e) {} }
             document.getElementById('room-screen').innerHTML = ''; 
             window.location.href = window.location.pathname; 
         }
@@ -1711,7 +1723,6 @@
         disconnectBtn.onclick = leaveRoom; 
         window.addEventListener('beforeunload', () => { 
             broadcastSignaling({ type: 'leave', id: myId });
-            if (dutyPeer) { try { dutyPeer.destroy(); } catch(e) {} }
         });
         
         window.addEventListener('keydown', (e) => { 
@@ -1867,7 +1878,7 @@
             const deviceType = profile.deviceType || 'pc';
             card.querySelector('.device-dot-container').innerHTML = getStatusDotHtml(deviceType);
 
-            const adminBadge = profile.isAdmin ? svgAdmin : ''; 
+            const adminBadge = (profile.isAdmin || (isMe && isRoomHost)) ? svgAdmin : ''; 
             card.querySelector('.is-me-badge').innerHTML = (isMe ? dict[currentLang].you : '') + (adminBadge ? ' ' + adminBadge : ''); 
             card.querySelector('.status-text').innerText = dict[currentLang].online;
             
@@ -1882,7 +1893,7 @@
                 card.querySelector('.loc-mute-btn').className = `loc-mute-btn ${locSet.muted ? 'muted' : ''}`;
                 
                 const adminControls = card.querySelector('.admin-controls');
-                if (isTrueAdmin) {
+                if (myProfile.isAdmin || isRoomHost) {
                     adminControls.style.display = 'flex'; 
                     const adminMuteBtn = card.querySelector('.admin-mute-btn'); 
                     if (adminMuteBtn) adminMuteBtn.innerText = state.adminMuted ? dict[currentLang].unmuteMic : dict[currentLang].muteMic; 
@@ -1956,6 +1967,7 @@
                     await audioCtx.resume(); 
                 }
                 
+                // 4. ЗАХВАТ АУДИО СРАЗУ ПРИ ВХОДЕ
                 localStream = await navigator.mediaDevices.getUserMedia({ 
                     audio: { 
                         echoCancellation: { ideal: true },
@@ -1979,10 +1991,10 @@
                     controlsPanel.style.display = 'flex'; 
                     updateHotkeysUI(); 
                     if(myProfile.avatar) profileBtn.innerHTML = `<img src="${myProfile.avatar}">`; 
-                }, 350);
+                }, 300);
                 
-                // Запуск автономной Mesh-сети
-                startAutonomousMesh();
+                // Старт надежного соединения
+                startPeerConnection();
             } catch (err) { 
                 console.error("Audio access error:", err);
                 alert(dict[currentLang].needMic + "\n" + (err.message || '')); 
