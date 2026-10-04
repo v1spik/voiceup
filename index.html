@@ -24,32 +24,32 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; font-weight: 400; }
         body { background-color: var(--bg); color: var(--text-main); height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
-        .app-name { position: absolute; top: 25px; font-size: 16px; font-weight: 700; letter-spacing: 2px; text-transform: lowercase; color: var(--text-muted); }
+        .app-name { position: absolute; top: 20px; font-size: 15px; font-weight: 700; letter-spacing: 2px; text-transform: lowercase; color: var(--text-muted); }
         
-        #profile-btn { position: absolute; top: 20px; left: 25px; width: 36px; height: 36px; border-radius: 50%; background-color: var(--button-bg); border: 1px solid #282828; color: var(--text-muted); display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 200; transition: 0.2s; overflow: hidden; }
+        #profile-btn { position: absolute; top: 16px; left: 16px; width: 34px; height: 34px; border-radius: 50%; background-color: var(--button-bg); border: 1px solid #282828; color: var(--text-muted); display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 200; transition: 0.2s; overflow: hidden; }
         #profile-btn:hover { border-color: #555; color: var(--text-main); }
         #profile-btn img { width: 100%; height: 100%; object-fit: cover; }
         
-        .lang-switch { position: absolute; top: 25px; right: 25px; font-size: 13px; color: var(--text-muted); z-index: 200; user-select: none; }
+        .lang-switch { position: absolute; top: 20px; right: 20px; font-size: 12px; color: var(--text-muted); z-index: 200; user-select: none; }
         .lang-switch span { cursor: pointer; transition: color 0.2s; }
         .lang-switch span.active { color: var(--text-main); font-weight: 500; }
 
         /* Верхняя панель комнаты */
         #room-header {
             position: absolute;
-            top: 20px;
+            top: 16px;
             display: none;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             background: var(--bg-secondary);
             border: 1px solid #282828;
-            padding: 6px 14px;
+            padding: 5px 12px;
             border-radius: 24px;
             z-index: 150;
             box-shadow: 0 4px 16px rgba(0,0,0,0.6);
             transition: all 0.3s ease;
         }
-        .room-title-box { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+        .room-title-box { display: flex; align-items: center; gap: 5px; font-size: 13px; }
         .room-hash { color: var(--text-muted); font-weight: 700; }
         #room-header-name { font-weight: 500; color: var(--text-main); text-transform: lowercase; }
         .role-badge { font-size: 10px; padding: 2px 6px; border-radius: 8px; font-weight: 500; text-transform: lowercase; }
@@ -60,32 +60,32 @@
             background: var(--button-bg);
             border: 1px solid #282828;
             color: var(--text-muted);
-            border-radius: 16px;
-            padding: 4px 10px;
+            border-radius: 14px;
+            padding: 4px 9px;
             display: flex;
             align-items: center;
-            gap: 5px;
-            font-size: 12px;
+            gap: 4px;
+            font-size: 11px;
             cursor: pointer;
             transition: 0.2s;
         }
         .header-btn:hover { color: var(--text-main); border-color: #555; background: var(--button-hover); }
-        .header-btn svg { width: 13px; height: 13px; }
+        .header-btn svg { width: 12px; height: 12px; }
         .header-btn.active { color: var(--success); border-color: rgba(80, 250, 123, 0.4); }
 
         #room-screen { 
             flex: 1; 
             padding: 20px; 
-            padding-top: 85px;
-            padding-bottom: 120px; 
+            padding-top: 80px;
+            padding-bottom: 110px; 
             display: flex; 
             flex-wrap: wrap; 
             align-content: center; 
             align-items: center; 
-            gap: 20px; 
+            gap: 18px; 
             justify-content: center; 
             opacity: 0; 
-            transition: opacity 0.4s ease; 
+            transition: opacity 0.3s ease; 
             overflow-y: auto; 
             height: 100%; 
         }
@@ -93,22 +93,22 @@
         #join-screen { 
             position: absolute; 
             background: var(--bg); 
-            padding: 30px; 
+            padding: 24px; 
             text-align: center; 
             z-index: 100; 
             display: flex; 
             flex-direction: column; 
-            gap: 14px; 
+            gap: 12px; 
             width: 100%; 
             max-width: 380px; 
         }
-        h1 { font-size: 24px; font-weight: 500; text-transform: lowercase; letter-spacing: -0.5px; margin-bottom: 5px; }
+        h1 { font-size: 24px; font-weight: 500; text-transform: lowercase; letter-spacing: -0.5px; }
 
         input[type="text"] { 
             background-color: var(--bg-secondary); 
             color: var(--text-main); 
             border: 1px solid #282828; 
-            padding: 14px; 
+            padding: 13px; 
             font-size: 14px; 
             border-radius: 6px; 
             width: 100%; 
@@ -122,7 +122,7 @@
             background-color: var(--button-bg); 
             color: var(--text-main); 
             border: 1px solid #333; 
-            padding: 14px 0; 
+            padding: 13px 0; 
             font-size: 14px; 
             font-weight: 500; 
             border-radius: 6px; 
@@ -137,8 +137,8 @@
             background-color: transparent; 
             color: var(--text-muted); 
             border: 1px solid #282828; 
-            padding: 12px 0; 
-            font-size: 13px; 
+            padding: 11px 0; 
+            font-size: 12px; 
             font-weight: 500; 
             border-radius: 6px; 
             cursor: pointer; 
@@ -148,38 +148,61 @@
         }
         button.secondary-btn:hover { color: var(--text-main); border-color: #555; }
 
-        #our-room-btn {
+        /* Блок закрепленных комнат */
+        #pinned-rooms-section {
             display: none;
-            background: rgba(88, 101, 242, 0.1);
-            color: #8da0ff;
-            border-color: rgba(88, 101, 242, 0.3);
-            margin-top: -4px;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 6px;
+            border-top: 1px solid #222;
+            padding-top: 12px;
+            text-align: left;
         }
-        #our-room-btn:hover {
-            background: rgba(88, 101, 242, 0.2);
-            border-color: rgba(88, 101, 242, 0.5);
-            color: #ffffff;
+        .pinned-rooms-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
+        .pinned-list { display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; }
+        .pinned-room-btn {
+            background: var(--bg-secondary);
+            border: 1px solid #282828;
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: 0.2s;
+            text-align: left;
+        }
+        .pinned-room-btn:hover { border-color: #555; background: var(--button-hover); }
+        .pinned-room-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pinned-room-del { color: var(--text-muted); padding: 2px 6px; font-size: 14px; }
+        .pinned-room-del:hover { color: var(--danger); }
 
-        /* Карточка профиля / юзера */
+        /* Карточка пользователя */
         .user-card { 
             background-color: transparent; 
-            width: 150px; 
-            height: 155px; 
+            width: 140px; 
+            height: 150px; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
             justify-content: center; 
             border: none; 
-            box-shadow: none; 
             animation: popIn 0.3s ease; 
             position: relative; 
         }
         @keyframes popIn { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
         
         .avatar { 
-            width: 60px; 
-            height: 60px; 
+            width: 58px; 
+            height: 58px; 
             border-radius: 50%; 
             display: flex; 
             align-items: center; 
@@ -187,7 +210,7 @@
             font-size: 18px; 
             font-weight: 700; 
             background-color: var(--button-bg); 
-            margin-bottom: 10px; 
+            margin-bottom: 8px; 
             text-transform: lowercase; 
             overflow: hidden; 
             border: 2px solid #282828; 
@@ -206,16 +229,16 @@
             text-transform: lowercase; 
             display: flex; 
             align-items: center; 
-            justify-content: center;
+            justify-content: center; 
             gap: 4px; 
-            max-width: 140px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            max-width: 130px; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
         }
         .nick-text { overflow: hidden; text-overflow: ellipsis; }
 
-        /* Discord-style индикатор статуса устройства */
+        /* Discord-style индикатор статуса */
         .user-status { 
             font-size: 11px; 
             color: var(--text-muted); 
@@ -236,14 +259,16 @@
             height: 14px;
             color: var(--success);
         }
-        /* ПК браузер: круглая точка */
+        /* ПК браузер: минималистичная иконка сети/браузера */
         .status-dot-pc {
-            width: 6px;
-            height: 6px;
-            background-color: var(--success);
-            border-radius: 50%;
+            width: 12px;
+            height: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        /* Телефон: аккуратный вертикальный силуэт смартфона */
+        .status-dot-pc svg { width: 12px; height: 12px; color: var(--success); }
+        /* Мобильное устройство: вертикальный силуэт смартфона */
         .status-dot-mobile {
             width: 8px;
             height: 12px;
@@ -285,19 +310,18 @@
         .status-icons { display: flex; gap: 4px; margin-left: 3px; }
         .status-icons svg { width: 13px; height: 13px; color: var(--danger); }
         
-        .card-menu-btn { position: absolute; top: 4px; right: 4px; background: var(--bg-secondary); border: 1px solid #282828; color: var(--text-muted); width: 26px; height: 26px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.2s; z-index: 10; }
+        .card-menu-btn { position: absolute; top: 4px; right: 4px; background: var(--bg-secondary); border: 1px solid #282828; color: var(--text-muted); width: 24px; height: 24px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.2s; z-index: 10; }
         .user-card:hover .card-menu-btn { opacity: 1; }
         .card-menu-btn:hover { color: var(--text-main); border-color: #555; }
         
-        .card-dropdown { position: absolute; top: 34px; right: 4px; background: var(--bg-secondary); border: 1px solid #282828; border-radius: 6px; padding: 12px; display: none; flex-direction: column; gap: 10px; z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,0.8); min-width: 155px; text-align: left; animation: fadeIn 0.15s ease-out; }
+        .card-dropdown { position: absolute; top: 32px; right: 4px; background: var(--bg-secondary); border: 1px solid #282828; border-radius: 6px; padding: 10px; display: none; flex-direction: column; gap: 8px; z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,0.8); min-width: 150px; text-align: left; }
         .card-dropdown.open { display: flex; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
         
-        .local-controls { display: flex; align-items: center; gap: 8px; width: 100%; opacity: 1; margin: 0; padding: 0; }
-        .admin-controls { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #282828; padding-top: 10px; }
-        .admin-btn { background: transparent; color: var(--text-muted); border: 1px solid #282828; padding: 6px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: 0.2s; text-transform: lowercase; text-align: left; }
+        .local-controls { display: flex; align-items: center; gap: 8px; width: 100%; }
+        .admin-controls { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #282828; padding-top: 8px; }
+        .admin-btn { background: transparent; color: var(--text-muted); border: 1px solid #282828; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: 0.2s; text-transform: lowercase; text-align: left; }
         .admin-btn:hover { color: var(--text-main); border-color: #555; background: rgba(255,255,255,0.05); }
-        .admin-btn.danger:hover { color: var(--danger); border-color: var(--danger); background: rgba(255,85,85,0.1); }
+        .admin-btn.danger:hover { color: var(--danger); border-color: var(--danger); }
         
         .loc-mute-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
         .loc-mute-btn:hover { color: var(--text-main); }
@@ -305,12 +329,11 @@
         .loc-mute-btn svg { width: 16px; height: 16px; }
         
         .loc-vol { -webkit-appearance: none; flex: 1; height: 4px; background: #282828; border-radius: 2px; outline: none; cursor: pointer; }
-        .loc-vol::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted); transition: 0.2s; }
-        .loc-vol::-webkit-slider-thumb:hover { background: var(--text-main); transform: scale(1.2); }
+        .loc-vol::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted); }
         
         /* Нижняя панель */
-        #controls-panel { position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); display: none; background-color: var(--bg-secondary); border: 1px solid #282828; border-radius: 10px; padding: 6px 8px; gap: 10px; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.6); align-items: center; }
-        .icon-btn { width: 42px; height: 42px; border-radius: 6px; background-color: var(--button-bg); border: none; color: var(--text-main); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; position: relative; }
+        #controls-panel { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; background-color: var(--bg-secondary); border: 1px solid #282828; border-radius: 10px; padding: 6px 8px; gap: 8px; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.6); align-items: center; }
+        .icon-btn { width: 40px; height: 40px; border-radius: 6px; background-color: var(--button-bg); border: none; color: var(--text-main); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; position: relative; }
         .icon-btn:hover { background-color: var(--button-hover); }
         .icon-btn svg { width: 20px; height: 20px; stroke-width: 2; }
         .icon-btn.off { color: var(--danger); background-color: rgba(255, 85, 85, 0.1); }
@@ -327,140 +350,64 @@
         .hotkey-btn { background-color: transparent; color: var(--text-muted); border: none; border-left: 1px solid #282828; padding: 0 8px; font-size: 11px; font-weight: 500; cursor: pointer; transition: color 0.2s; min-width: 32px; text-transform: uppercase; display: flex; align-items: center; justify-content: center; }
         .hotkey-btn:hover { color: var(--text-main); }
         .hotkey-btn.listening { color: var(--success); }
-        .hotkey-btn svg { width: 15px; height: 15px; stroke-width: 2; }
-        .cancel-hk { width: 12px; height: 12px; margin-left: 4px; color: var(--text-muted); transition: 0.2s; display: inline-block; }
+        .hotkey-btn svg { width: 14px; height: 14px; stroke-width: 2; }
+        .cancel-hk { width: 12px; height: 12px; margin-left: 4px; color: var(--text-muted); display: inline-block; }
         .cancel-hk:hover { color: var(--danger); }
         
         #chat-badge { position: absolute; top: -2px; right: -2px; width: 9px; height: 9px; background-color: var(--danger); border-radius: 50%; display: none; box-shadow: 0 0 0 2px var(--bg-secondary); }
 
-        /* QR Код модалка / всплывающее окно */
-        #qr-modal {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(4px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 500;
-        }
-        .qr-card {
-            background: var(--bg-secondary);
-            border: 1px solid #282828;
-            border-radius: 12px;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            box-shadow: 0 16px 40px rgba(0,0,0,0.8);
-            position: relative;
-            max-width: 280px;
-            width: 100%;
-        }
-        .qr-close-btn {
-            position: absolute;
-            top: 10px;
-            right: 12px;
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-size: 20px;
-            cursor: pointer;
-            line-height: 1;
-        }
+        /* QR Код модалка */
+        #qr-modal { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px); display: none; justify-content: center; align-items: center; z-index: 500; }
+        .qr-card { background: var(--bg-secondary); border: 1px solid #282828; border-radius: 12px; padding: 22px; display: flex; flex-direction: column; align-items: center; gap: 14px; box-shadow: 0 16px 40px rgba(0,0,0,0.8); position: relative; max-width: 280px; width: 90vw; }
+        .qr-close-btn { position: absolute; top: 8px; right: 10px; background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; line-height: 1; }
         .qr-close-btn:hover { color: var(--text-main); }
-        .qr-box {
-            background: #ffffff;
-            padding: 12px;
-            border-radius: 8px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+        .qr-box { background: #ffffff; padding: 10px; border-radius: 8px; display: flex; justify-content: center; align-items: center; }
         .qr-room-text { font-size: 13px; color: var(--text-muted); text-transform: lowercase; }
 
         /* Модалка профиля */
-        #profile-modal { 
-            position: absolute; 
-            inset: 0; 
-            background: rgba(0, 0, 0, 0.8); 
-            display: none; 
-            justify-content: center; 
-            align-items: center; 
-            z-index: 300; 
-        }
-        .modal-content { 
-            background: var(--bg); 
-            border: 1px solid #282828; 
-            padding: 26px; 
-            border-radius: 8px; 
-            width: 300px; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            gap: 16px; 
-        }
-        .avatar-upload { 
-            width: 76px; 
-            height: 76px; 
-            border-radius: 50%; 
-            background-color: var(--bg-secondary); 
-            border: 1px dashed #444; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            cursor: pointer; 
-            overflow: hidden; 
-            position: relative; 
-        }
-        .avatar-upload:hover { border-color: #777; }
+        #profile-modal { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 300; }
+        .modal-content { background: var(--bg); border: 1px solid #282828; padding: 24px; border-radius: 8px; width: 290px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .avatar-upload { width: 72px; height: 72px; border-radius: 50%; background-color: var(--bg-secondary); border: 1px dashed #444; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative; }
         .avatar-upload img { width: 100%; height: 100%; object-fit: cover; }
-        .avatar-upload span { font-size: 12px; color: var(--text-muted); position: absolute; }
+        .avatar-upload span { font-size: 11px; color: var(--text-muted); position: absolute; }
         #avatarInput { display: none; }
-        #removeAvatarBtn { color: var(--danger); font-size: 11px; cursor: pointer; margin-top: -8px; display: none; }
+        #removeAvatarBtn { color: var(--danger); font-size: 11px; cursor: pointer; margin-top: -6px; display: none; }
         #removeAvatarBtn:hover { text-decoration: underline; }
-        input[type="color"] { -webkit-appearance: none; border: 1px solid #282828; width: 100%; height: 38px; border-radius: 4px; cursor: pointer; padding: 0; background-color: var(--bg-secondary); }
-        input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
-        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 2px; }
+        input[type="color"] { -webkit-appearance: none; border: 1px solid #282828; width: 100%; height: 36px; border-radius: 4px; cursor: pointer; padding: 0; background-color: var(--bg-secondary); }
         #resetProfileBtn { color: var(--text-muted); font-size: 11px; cursor: pointer; text-decoration: underline; margin-top: -4px; }
         #resetProfileBtn:hover { color: var(--danger); }
         .modal-buttons { display: flex; gap: 8px; width: 100%; }
 
         /* Чат */
-        #chat-panel { position: absolute; inset: 0; z-index: 1000; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s; display: flex; justify-content: center; align-items: center; padding: 20px; padding-bottom: 90px; }
+        #chat-panel { position: absolute; inset: 0; z-index: 1000; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s; display: flex; justify-content: center; align-items: center; padding: 16px; padding-bottom: 85px; }
         #chat-panel.open { opacity: 1; visibility: visible; }
-        .chat-inner { width: 100%; max-width: 680px; height: 100%; max-height: 80vh; background: var(--bg-secondary); border: 1px solid #282828; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.8); transform-origin: bottom center; transform: scale(0.5) translateY(150px); transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1); }
-        #chat-panel.open .chat-inner { transform: scale(1) translateY(0); }
-        .chat-header { padding: 16px 20px; border-bottom: 1px solid #282828; display: flex; justify-content: space-between; align-items: center; font-weight: 500; background: #161616; font-size: 14px; }
-        #close-chat { background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; line-height: 1; }
+        .chat-inner { width: 100%; max-width: 660px; height: 100%; max-height: 80vh; background: var(--bg-secondary); border: 1px solid #282828; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.8); }
+        .chat-header { padding: 14px 18px; border-bottom: 1px solid #282828; display: flex; justify-content: space-between; align-items: center; font-weight: 500; background: #161616; font-size: 14px; }
+        #close-chat { background: none; border: none; color: var(--text-muted); font-size: 22px; cursor: pointer; line-height: 1; }
         #close-chat:hover { color: var(--danger); }
-        #chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        #chat-messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
         .chat-msg { font-size: 13px; line-height: 1.4; word-wrap: break-word; }
         .chat-img { max-width: 100%; border-radius: 4px; margin-top: 4px; display: block; border: 1px solid #333; }
-        .chat-file { display: inline-block; background: var(--button-bg); padding: 6px 10px; border-radius: 4px; color: var(--text-main); text-decoration: none; margin-top: 4px; font-size: 12px; border: 1px solid #333; }
-        .chat-input-area { padding: 12px 18px; border-top: 1px solid #282828; display: flex; gap: 8px; align-items: center; }
-        .chat-input-area input[type="text"] { flex: 1; padding: 11px; font-size: 13px; text-align: left; }
+        .chat-file { display: inline-block; background: var(--button-bg); padding: 5px 8px; border-radius: 4px; color: var(--text-main); text-decoration: none; margin-top: 4px; font-size: 11px; border: 1px solid #333; }
+        .chat-input-area { padding: 10px 16px; border-top: 1px solid #282828; display: flex; gap: 8px; align-items: center; }
+        .chat-input-area input[type="text"] { flex: 1; padding: 10px; font-size: 13px; text-align: left; }
         #chat-attach-btn { cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center; padding: 4px; }
-        #chat-attach-btn:hover { color: var(--text-main); }
         #chat-attach-btn svg { width: 18px; height: 18px; }
-        #chat-send { background: var(--button-bg); border: 1px solid #282828; color: var(--text-main); width: 40px; height: 40px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        #chat-send:hover { background: var(--button-hover); }
+        #chat-send { background: var(--button-bg); border: 1px solid #282828; color: var(--text-main); width: 38px; height: 38px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         #chat-send svg { width: 16px; height: 16px; }
         
         #banned-screen { position: absolute; inset: 0; background: var(--bg); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; padding: 20px; }
-        #admin-notifications { position: absolute; top: 75px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 2000; }
-        .appeal-card { background: var(--bg-secondary); border: 1px solid #282828; border-radius: 8px; padding: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.8); width: 270px; animation: slideIn 0.3s ease; text-align: left; }
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        #admin-notifications { position: absolute; top: 70px; right: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 2000; }
+        .appeal-card { background: var(--bg-secondary); border: 1px solid #282828; border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.8); width: 260px; text-align: left; }
         
         #toast-notification {
             position: fixed;
-            bottom: 80px;
+            bottom: 75px;
             left: 50%;
             transform: translateX(-50%) translateY(20px);
             background: var(--text-main);
             color: var(--bg);
-            padding: 7px 16px;
+            padding: 6px 14px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 500;
@@ -470,9 +417,42 @@
             z-index: 2500;
             box-shadow: 0 4px 16px rgba(0,0,0,0.6);
         }
-        #toast-notification.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
+        #toast-notification.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* 3. АДАПТИВНОСТЬ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ */
+        @media (max-width: 768px) {
+            .app-name { display: none; }
+            #room-header {
+                top: 10px;
+                left: 10px;
+                right: 10px;
+                border-radius: 14px;
+                padding: 8px 10px;
+                flex-wrap: wrap;
+                justify-content: space-between;
+                gap: 6px;
+            }
+            .room-title-box { font-size: 12px; }
+            .header-btn { font-size: 10px; padding: 4px 7px; }
+            #profile-btn { top: auto; bottom: 20px; left: 16px; z-index: 120; }
+            .lang-switch { top: auto; bottom: 25px; right: 16px; }
+            #controls-panel {
+                bottom: 16px;
+                padding: 4px 6px;
+                gap: 6px;
+                border-radius: 8px;
+            }
+            .icon-btn { width: 38px; height: 38px; }
+            .hotkey-btn { display: none; }
+            #room-screen {
+                padding-top: 90px;
+                padding-bottom: 95px;
+                gap: 12px;
+            }
+            .user-card { width: 120px; height: 130px; }
+            .avatar { width: 50px; height: 50px; font-size: 15px; }
+            #qr-modal .qr-card { width: 90vw; max-width: 290px; padding: 18px; }
+            #join-screen { padding: 16px; max-width: 90vw; }
         }
     </style>
 </head>
@@ -507,11 +487,11 @@
             <span>QR</span>
         </button>
 
-        <button id="permanent-room-btn" class="header-btn" title="Сделать постоянной комнатой">
+        <button id="pin-room-btn" class="header-btn" title="Закрепить комнату">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
             </svg>
-            <span id="perm-btn-text" class="trans-permanent">закрепить</span>
+            <span id="pin-btn-text" class="trans-pin">закрепить</span>
         </button>
     </div>
 
@@ -555,13 +535,20 @@
         <input type="text" id="nicknameInput" placeholder="никнейм" autocomplete="off" maxlength="15">
 
         <button id="startBtn" class="primary-btn trans-enter">войти</button>
-        <button id="our-room-btn" class="secondary-btn">войти в нашу комнату</button>
+
+        <!-- Слоты закрепленных комнат (0/5) -->
+        <div id="pinned-rooms-section">
+            <div class="pinned-rooms-title">
+                <span id="pinned-counter-text">закрепленные комнаты (0/5)</span>
+            </div>
+            <div class="pinned-list" id="pinned-rooms-list"></div>
+        </div>
     </div>
 
     <!-- Экран бана -->
     <div id="banned-screen">
         <h1 class="trans-banned-title" style="color: var(--danger); margin-bottom: 8px;">Доступ закрыт</h1>
-        <p class="trans-banned-desc" style="color: var(--text-muted); margin-bottom: 20px; font-size: 13px;">Вы были кикнуты из комнаты. Запросите доступ у администратора.</p>
+        <p class="trans-banned-desc" style="color: var(--text-muted); margin-bottom: 16px; font-size: 13px;">Вы были кикнуты из комнаты. Запросите доступ у администратора.</p>
         <button id="appealBtn" class="primary-btn trans-req-access" style="max-width: 220px;">Запросить доступ</button>
     </div>
 
@@ -632,13 +619,16 @@
     <div id="webrtc-audio-container" style="display:none;"></div>
 
     <script>
+        const MAX_PINNED_ROOMS = 5;
         const dict = {
             ru: { 
                 welcome: "voiceup", 
                 roomPlaceholder: "код комнаты",
                 nickPlaceholder: "никнейм",
                 enterBtn: "войти", 
-                ourRoomBtn: "войти в нашу комнату: #",
+                pinnedTitle: "закрепленные комнаты",
+                enterPinnedPrefix: "войти в закрепленную комнату: #",
+                pinLimitReached: "лимит закрепленных комнат (5/5)",
                 online: "на связи", 
                 you: " (вы)", 
                 guest: "гость", 
@@ -653,9 +643,10 @@
                 cancel: "отмена", 
                 copy: "ссылка", 
                 copied: "ссылка скопирована!", 
-                permanentSaved: "комната закреплена!", 
-                permanentBtn: "закрепить",
-                permanentActive: "закреплена",
+                pinBtn: "закрепить",
+                pinnedActive: "закреплена",
+                roomPinned: "комната закреплена!",
+                roomUnpinned: "комната откреплена",
                 chatTitle: "чат", 
                 chatInput: "сообщение...", 
                 fileTooBig: "файл слишком большой (макс 5 МБ)", 
@@ -681,7 +672,9 @@
                 roomPlaceholder: "room code",
                 nickPlaceholder: "nickname",
                 enterBtn: "enter", 
-                ourRoomBtn: "enter our room: #",
+                pinnedTitle: "pinned rooms",
+                enterPinnedPrefix: "enter pinned room: #",
+                pinLimitReached: "pinned rooms limit reached (5/5)",
                 online: "online", 
                 you: " (you)", 
                 guest: "guest", 
@@ -696,9 +689,10 @@
                 cancel: "cancel", 
                 copy: "link", 
                 copied: "link copied!", 
-                permanentSaved: "permanent room saved!", 
-                permanentBtn: "pin room",
-                permanentActive: "pinned",
+                pinBtn: "pin room",
+                pinnedActive: "pinned",
+                roomPinned: "room pinned!",
+                roomUnpinned: "room unpinned",
                 chatTitle: "chat", 
                 chatInput: "message...", 
                 fileTooBig: "file too large (max 5 MB)", 
@@ -723,7 +717,6 @@
 
         let currentLang = 'ru';
 
-        // 1. ОПРЕДЕЛЕНИЕ ТИПА УСТРОЙСТВА
         function detectDeviceType() {
             try {
                 const isElectron = Boolean(
@@ -745,7 +738,17 @@
 
         const myDeviceType = detectDeviceType();
 
-        // 2. ИНИЦИАЛИЗАЦИЯ КОДА КОМНАТЫ И URL
+        // 4. ДИЗАЙН ТОЧКИ СТАТУСА ДЛЯ ПК-БРАУЗЕРА, МОБИЛЬНЫХ И ДЕСКТОП-ПРИЛОЖЕНИЙ
+        function getStatusDotHtml(deviceType) {
+            if (deviceType === 'mobile') {
+                return `<div class="status-device-indicator" title="mobile"><div class="status-dot-mobile"></div></div>`;
+            } else if (deviceType === 'app') {
+                return `<div class="status-device-indicator" title="app"><div class="status-dot-app"></div></div>`;
+            }
+            // ПК-браузер: аккуратная минималистичная иконка сети/браузера
+            return `<div class="status-device-indicator" title="pc"><div class="status-dot-pc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></div></div>`;
+        }
+
         const urlParams = new URLSearchParams(window.location.search);
         let activeRoom = urlParams.get('room') || window.location.hash.replace('#', '').trim();
         
@@ -763,27 +766,63 @@
         const roomRoleTag = document.getElementById('room-role-tag');
         const copyRoomLinkBtn = document.getElementById('copy-room-link-btn');
         const copyBtnText = document.getElementById('copy-btn-text');
-        const permRoomBtn = document.getElementById('permanent-room-btn');
-        const permBtnText = document.getElementById('perm-btn-text');
+        const pinRoomBtn = document.getElementById('pin-room-btn');
+        const pinBtnText = document.getElementById('pin-btn-text');
         const qrBtn = document.getElementById('qr-btn');
         const qrModal = document.getElementById('qr-modal');
         const qrClose = document.getElementById('qr-close');
         const qrCopyBtn = document.getElementById('qr-copy-btn');
         const qrRoomLabel = document.getElementById('qr-room-label');
         const qrcodeContainer = document.getElementById('qrcode-container');
-        const ourRoomBtn = document.getElementById('our-room-btn');
         const toastNotif = document.getElementById('toast-notification');
+        const pinnedSection = document.getElementById('pinned-rooms-section');
+        const pinnedCounterText = document.getElementById('pinned-counter-text');
+        const pinnedRoomsList = document.getElementById('pinned-rooms-list');
 
-        // Проверка постоянной комнаты в localStorage
-        const savedPermRoom = localStorage.getItem('voiceup_permanent_room');
-        if (savedPermRoom) {
-            ourRoomBtn.style.display = 'block';
-            ourRoomBtn.innerText = dict[currentLang].ourRoomBtn + savedPermRoom;
-            ourRoomBtn.onclick = () => {
-                roomCodeInput.value = savedPermRoom;
-                activeRoom = savedPermRoom;
-                document.getElementById('startBtn').click();
-            };
+        function getPinnedRooms() {
+            try {
+                return JSON.parse(localStorage.getItem('voiceup_pinned_rooms')) || [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function savePinnedRooms(list) {
+            localStorage.setItem('voiceup_pinned_rooms', JSON.stringify(list.slice(0, MAX_PINNED_ROOMS)));
+            renderPinnedRoomsUI();
+            updateRoomHeaderUI();
+        }
+
+        function renderPinnedRoomsUI() {
+            const list = getPinnedRooms();
+            pinnedCounterText.innerText = `${dict[currentLang].pinnedTitle} (${list.length}/${MAX_PINNED_ROOMS})`;
+            pinnedRoomsList.innerHTML = '';
+            
+            if (list.length > 0) {
+                pinnedSection.style.display = 'flex';
+                list.forEach(r => {
+                    const item = document.createElement('div');
+                    item.className = 'pinned-room-btn';
+                    item.innerHTML = `
+                        <span class="pinned-room-name">${dict[currentLang].enterPinnedPrefix}${escapeHTML(r)}</span>
+                        <span class="pinned-room-del" title="удалить">×</span>
+                    `;
+                    item.querySelector('.pinned-room-name').onclick = () => {
+                        roomCodeInput.value = r;
+                        activeRoom = r;
+                        document.getElementById('startBtn').click();
+                    };
+                    item.querySelector('.pinned-room-del').onclick = (e) => {
+                        e.stopPropagation();
+                        const updated = getPinnedRooms().filter(itemRoom => itemRoom !== r);
+                        savePinnedRooms(updated);
+                        showToast(dict[currentLang].roomUnpinned);
+                    };
+                    pinnedRoomsList.appendChild(item);
+                });
+            } else {
+                pinnedSection.style.display = 'none';
+            }
         }
 
         if (activeRoom) {
@@ -802,9 +841,10 @@
 
         function updateRoomHeaderUI() {
             roomHeaderName.innerText = activeRoom;
-            const isPerm = localStorage.getItem('voiceup_permanent_room') === activeRoom;
-            permRoomBtn.classList.toggle('active', isPerm);
-            permBtnText.innerText = isPerm ? dict[currentLang].permanentActive : dict[currentLang].permanentBtn;
+            const pinnedList = getPinnedRooms();
+            const isPinned = pinnedList.includes(activeRoom);
+            pinRoomBtn.classList.toggle('active', isPinned);
+            pinBtnText.innerText = isPinned ? dict[currentLang].pinnedActive : dict[currentLang].pinBtn;
 
             if (myProfile.isAdmin) {
                 roomRoleTag.className = 'role-badge host';
@@ -815,7 +855,6 @@
             }
         }
 
-        // 3. АУДИО И СЕТЬ
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         let peer = null;
         let localStream = null;
@@ -873,20 +912,35 @@
         function showToast(msg) {
             toastNotif.innerText = msg;
             toastNotif.classList.add('show');
-            setTimeout(() => {
-                toastNotif.classList.remove('show');
-            }, 1800);
+            setTimeout(() => { toastNotif.classList.remove('show'); }, 1800);
         }
 
-        // ОБРАБОТЧИК СИГНАЛИНГА
+        // ОБРАБОТЧИК СИГНАЛОВ
         function handleIncomingSignal(remoteId, message) {
             const peerId = message.id || remoteId;
             const peerProfile = message.profile || { nick: dict[currentLang].guest, color: '#ffffff', avatar: '', deviceType: 'pc' };
 
-            // ПЕРЕДАЧА ПРАВ TRUE ADMIN
+            // 2. ФИКС РАЗДВОЕНИЯ: АДМИН ПЕРЕПОДКЛЮЧИЛСЯ
+            if (message.type === 'admin-reconnected') {
+                if (message.isTrueAdmin && message.newAdminId) {
+                    const oldHostId = hostPeerId;
+                    if (oldHostId !== message.newAdminId) {
+                        cleanupPeer(oldHostId);
+                    }
+                    if (isRoomHost && !isTrueAdmin) {
+                        myProfile.isAdmin = false;
+                        updateRoomHeaderUI();
+                        updateCardVisuals(myId, myProfile, true);
+                    }
+                    if (!activeConnections[message.newAdminId]) {
+                        connectDataToPeer(message.newAdminId);
+                    }
+                }
+                return;
+            }
+
             if (message.type === 'claim_true_admin') {
                 if (message.deviceId === localStorage.getItem('voiceup_admin_hwid_' + activeRoom) || message.isTrueAdmin) {
-                    // Уступаем права True Admin
                     if (isRoomHost && !isTrueAdmin) {
                         myProfile.isAdmin = false;
                         updateRoomHeaderUI();
@@ -900,14 +954,6 @@
                 return;
             }
 
-            // Синхронизация постоянной комнаты
-            if (message.type === 'set_permanent_room' && message.roomId) {
-                localStorage.setItem('voiceup_permanent_room', message.roomId);
-                updateRoomHeaderUI();
-                return;
-            }
-
-            // Проверка бана
             if (myProfile.isAdmin && (message.type === 'join' || message.type === 'handshake')) {
                 if (bannedDevices[message.profile?.deviceId]) {
                     sendToPeer(peerId, { type: 'banned_reject', target: peerId, senderName: myProfile.nick });
@@ -915,7 +961,6 @@
                 }
             }
 
-            // Апелляция бана
             if (myProfile.isAdmin && message.type === 'ban_appeal') {
                 if (ignoredAppeals[message.deviceId]) return; 
                 const notifId = `appeal-${message.deviceId}`; 
@@ -982,13 +1027,11 @@
                 return; 
             }
 
-            // MESH: Подключение новичка к Хосту
             if (message.type === 'join' && isRoomHost) {
                 userProfiles[peerId] = peerProfile;
                 userStates[peerId] = message.state || { mic: true, deaf: false, adminMuted: false };
                 addUserCard(peerId, peerProfile, false);
 
-                // Отправляем список всех пиров в комнате
                 const currentPeers = Object.keys(activeConnections).filter(id => id !== peerId);
                 sendToPeer(peerId, {
                     type: 'room-state',
@@ -999,7 +1042,6 @@
                     peerList: currentPeers
                 });
 
-                // Оповещаем остальных гостей о новом участнике
                 broadcastSignaling({
                     type: 'new-peer-announced',
                     id: peerId,
@@ -1011,14 +1053,12 @@
                 return;
             }
 
-            // MESH: Получение списка участников от Хоста
             if (message.type === 'room-state' && message.target === myId) {
                 userProfiles[peerId] = peerProfile;
                 userStates[peerId] = message.state || { mic: true, deaf: false, adminMuted: false };
                 addUserCard(peerId, peerProfile, false);
                 evaluateVoiceCall(peerId);
 
-                // Если мы True Admin — заявляем о своих правах
                 if (isTrueAdmin) {
                     sendToPeer(peerId, { type: 'claim_true_admin', id: myId, deviceId: myProfile.deviceId, isTrueAdmin: true });
                 }
@@ -1033,7 +1073,6 @@
                 return;
             }
 
-            // MESH: Оповещение о новичке
             if (message.type === 'new-peer-announced' && message.id !== myId) {
                 const newPeerId = message.id;
                 userProfiles[newPeerId] = message.profile || peerProfile;
@@ -1046,7 +1085,6 @@
                 return;
             }
 
-            // MESH: Handshake между гостями
             if (message.type === 'handshake') {
                 userProfiles[peerId] = peerProfile;
                 userStates[peerId] = message.state || { mic: true, deaf: false, adminMuted: false };
@@ -1064,7 +1102,6 @@
             }
         }
 
-        // ДЕТЕРМИНИРОВАННЫЙ ЗВОНОК (РОVНО 1 ИНИЦИАТОР)
         function evaluateVoiceCall(remoteId) {
             if (!peer || !localStream || activeCalls[remoteId]) return;
             if (shouldInitiateCall(myId, remoteId)) {
@@ -1081,12 +1118,8 @@
                     call.on('stream', (stream) => {
                         attachRemoteAudio(remoteId, stream);
                     });
-                    call.on('close', () => {
-                        cleanupCall(remoteId);
-                    });
-                    call.on('error', (e) => {
-                        console.error('Call error with:', remoteId, e);
-                    });
+                    call.on('close', () => { cleanupCall(remoteId); });
+                    call.on('error', (e) => { console.error('Call error with:', remoteId, e); });
                 }
             } catch(e) {
                 console.error('Failed to initiate voice call:', e);
@@ -1104,13 +1137,11 @@
                 call.on('stream', (remoteStream) => {
                     attachRemoteAudio(call.peer, remoteStream);
                 });
-                call.on('close', () => {
-                    cleanupCall(call.peer);
-                });
+                call.on('close', () => { cleanupCall(call.peer); });
             });
 
             peer.on('error', (err) => {
-                console.warn('Peer error:', err.type, err);
+                console.warn('Peer general warning/error:', err.type);
             });
         }
 
@@ -1228,7 +1259,7 @@
             } catch(e) {}
         }
 
-        // ЛОКАЛЬНЫЙ ДЕТЕКТОР РЕЧИ (БЕЗ ДУБЛИРОВАНИЯ В НАУШНИКИ)
+        // 1. ЛОКАЛЬНЫЙ ДЕТЕКТОР РЕЧИ (ПОДСВЕТКА СВОЕЙ АВАТАРКИ)
         function startLocalSpeakingDetector() {
             if (!localStream) return;
             try {
@@ -1281,28 +1312,28 @@
             }
         }
 
-        // 4. СТАРТ ПОДКЛЮЧЕНИЯ И РОЛИ
+        // 1 & 2. ФИКС: ТАЙМ-АУТ НА 2 СЕКУНДЫ + ОБЪЯВЛЕНИЕ ХОСТОМ / RECONNECT TRUE ADMIN
         function startPeerConnection() {
             hostPeerId = activeRoom + '_host';
             isTrueAdmin = checkTrueAdminStatus();
 
-            const testHostPeer = new Peer(hostPeerId, {
-                config: { 
-                    iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' }, 
-                        { urls: 'stun:stun1.l.google.com:19302' },
-                        { urls: 'stun:stun2.l.google.com:19302' }
-                    ] 
-                }
-            });
+            let connectionEstablished = false;
+            let hostCandidatePeer = null;
 
-            testHostPeer.on('open', (id) => {
-                peer = testHostPeer;
+            // Если это возврат True Admin, принудительно дисконнектим старый зависший Peer
+            if (peer) {
+                try { peer.disconnect(); peer.destroy(); } catch (e) {}
+                peer = null;
+            }
+
+            const becomeHost = () => {
+                if (connectionEstablished) return;
+                connectionEstablished = true;
+
                 isRoomHost = true;
                 myId = hostPeerId;
                 myProfile.isAdmin = true;
-                
-                // Если мы зашли первыми в новую комнату, закрепляем hwid админа
+
                 if (!localStorage.getItem('voiceup_admin_hwid_' + activeRoom)) {
                     localStorage.setItem('voiceup_admin_hwid_' + activeRoom, myProfile.deviceId);
                     localStorage.setItem('voiceup_is_true_admin_' + activeRoom, 'true');
@@ -1313,32 +1344,93 @@
                 addUserCard(myId, myProfile, true);
                 bindPeerEvents();
                 startLocalSpeakingDetector();
+
+                // Оповещаем о переподключении админа
+                broadcastSignaling({
+                    type: 'admin-reconnected',
+                    newAdminId: myId,
+                    isTrueAdmin: isTrueAdmin
+                });
+            };
+
+            const becomeGuest = () => {
+                if (connectionEstablished) return;
+                connectionEstablished = true;
+
+                if (hostCandidatePeer) {
+                    try { hostCandidatePeer.destroy(); } catch (e) {}
+                }
+
+                isRoomHost = false;
+                myProfile.isAdmin = isTrueAdmin;
+                myId = activeRoom + '_g_' + Math.random().toString(36).substring(2, 8);
+                updateRoomHeaderUI();
+
+                peer = new Peer(myId, {
+                    config: { 
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' }, 
+                            { urls: 'stun:stun1.l.google.com:19302' },
+                            { urls: 'stun:stun2.l.google.com:19302' }
+                        ] 
+                    }
+                });
+
+                peer.on('open', () => {
+                    addUserCard(myId, myProfile, true);
+                    bindPeerEvents();
+                    startLocalSpeakingDetector();
+                    connectDataToPeer(hostPeerId);
+                });
+
+                // Если гость не может подключиться к хосту за 2.5 секунды, хост завис — становимся новым хостом!
+                setTimeout(() => {
+                    if (!activeConnections[hostPeerId] || !activeConnections[hostPeerId].open) {
+                        if (Object.keys(activeConnections).length === 0) {
+                            try { peer.destroy(); } catch(e) {}
+                            connectionEstablished = false;
+                            becomeHost();
+                        }
+                    }
+                }, 2500);
+            };
+
+            // Пробуем зарегистрироваться как Хост
+            hostCandidatePeer = new Peer(hostPeerId, {
+                config: { 
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' }, 
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' }
+                    ] 
+                }
             });
 
-            testHostPeer.on('error', (err) => {
+            // Тайм-аут 2 секунды: если за 2 секунды ответ от PeerJS не получен, объявляем себя хостом
+            const hostInitTimeout = setTimeout(() => {
+                if (!connectionEstablished) {
+                    if (hostCandidatePeer && hostCandidatePeer.open) {
+                        peer = hostCandidatePeer;
+                        becomeHost();
+                    } else {
+                        becomeGuest();
+                    }
+                }
+            }, 2000);
+
+            hostCandidatePeer.on('open', (id) => {
+                clearTimeout(hostInitTimeout);
+                peer = hostCandidatePeer;
+                becomeHost();
+            });
+
+            hostCandidatePeer.on('error', (err) => {
+                clearTimeout(hostInitTimeout);
                 if (err.type === 'unavailable-id') {
-                    testHostPeer.destroy();
-                    isRoomHost = false;
-                    myProfile.isAdmin = isTrueAdmin;
-                    myId = activeRoom + '_g_' + Math.random().toString(36).substring(2, 8);
-                    updateRoomHeaderUI();
-
-                    peer = new Peer(myId, {
-                        config: { 
-                            iceServers: [
-                                { urls: 'stun:stun.l.google.com:19302' }, 
-                                { urls: 'stun:stun1.l.google.com:19302' },
-                                { urls: 'stun:stun2.l.google.com:19302' }
-                            ] 
-                        }
-                    });
-
-                    peer.on('open', () => {
-                        addUserCard(myId, myProfile, true);
-                        bindPeerEvents();
-                        startLocalSpeakingDetector();
-                        connectDataToPeer(hostPeerId);
-                    });
+                    becomeGuest();
+                } else {
+                    // При любой другой ошибке сети/сервера объявляем гостем или пробуем резерв
+                    becomeGuest();
                 }
             });
         }
@@ -1372,7 +1464,6 @@
             } catch(e) {}
         }
 
-        // ЭЛЕМЕНТЫ ИНТЕРФЕЙСА
         const elWelcome = document.getElementById('welcome-title'); 
         const elInput = document.getElementById('nicknameInput');
         const elBtn = document.getElementById('startBtn'); 
@@ -1441,9 +1532,6 @@
             elInput.placeholder = dict[lang].nickPlaceholder; 
             roomCodeInput.placeholder = dict[lang].roomPlaceholder;
             elBtn.innerText = dict[lang].enterBtn; 
-            if (savedPermRoom) {
-                ourRoomBtn.innerText = dict[lang].ourRoomBtn + savedPermRoom;
-            }
             document.querySelector('.trans-photo').innerText = dict[lang].photo; 
             document.querySelector('.trans-remove-photo').innerText = dict[lang].removePhoto; 
             document.querySelector('.trans-color').innerText = dict[lang].color; 
@@ -1471,10 +1559,7 @@
             const appBtn = document.getElementById('appealBtn'); 
             if (appBtn && !appBtn.disabled) appBtn.innerText = dict[lang].reqAccess;
             
-            Object.keys(userStates).forEach(id => { 
-                const btn = document.getElementById(`card-${id}`)?.querySelector('.admin-mute-btn'); 
-                if (btn) btn.innerText = userStates[id].adminMuted ? dict[lang].unmuteMic : dict[lang].muteMic; 
-            });
+            renderPinnedRoomsUI();
             updateRoomHeaderUI();
         }
         document.getElementById('lang-ru').onclick = () => setLanguage('ru'); 
@@ -1484,7 +1569,6 @@
             return window.location.origin + window.location.pathname.replace(/\/$/, '') + '/?room=' + encodeURIComponent(activeRoom);
         }
 
-        // КОПИРОВАНИЕ ССЫЛКИ
         async function copyRoomUrl() {
             const cleanUrl = getFullRoomUrl();
             try { 
@@ -1502,23 +1586,22 @@
         copyRoomLinkBtn.onclick = copyRoomUrl;
         qrCopyBtn.onclick = copyRoomUrl;
 
-        // ЗАКРЕПЛЕНИЕ ПОСТОЯННОЙ КОМНАТЫ
-        permRoomBtn.onclick = () => {
-            const isCurrentlyPerm = localStorage.getItem('voiceup_permanent_room') === activeRoom;
-            if (isCurrentlyPerm) {
-                localStorage.removeItem('voiceup_permanent_room');
-                permRoomBtn.classList.remove('active');
-                permBtnText.innerText = dict[currentLang].permanentBtn;
+        // ЗАКРЕПЛЕНИЕ КОМНАТЫ В СЛОТЫ (МАКСИМУМ 5)
+        pinRoomBtn.onclick = () => {
+            const list = getPinnedRooms();
+            const idx = list.indexOf(activeRoom);
+            if (idx !== -1) {
+                list.splice(idx, 1);
+                savePinnedRooms(list);
+                showToast(dict[currentLang].roomUnpinned);
             } else {
-                localStorage.setItem('voiceup_permanent_room', activeRoom);
-                if (myProfile.isAdmin) {
-                    localStorage.setItem('voiceup_is_true_admin_' + activeRoom, 'true');
-                    isTrueAdmin = true;
+                if (list.length >= MAX_PINNED_ROOMS) {
+                    showToast(dict[currentLang].pinLimitReached);
+                    return;
                 }
-                permRoomBtn.classList.add('active');
-                permBtnText.innerText = dict[currentLang].permanentActive;
-                showToast(dict[currentLang].permanentSaved);
-                broadcastSignaling({ type: 'set_permanent_room', roomId: activeRoom });
+                list.push(activeRoom);
+                savePinnedRooms(list);
+                showToast(dict[currentLang].roomPinned);
             }
         };
 
@@ -1528,8 +1611,8 @@
             qrcodeContainer.innerHTML = '';
             qrCodeInstance = new QRCode(qrcodeContainer, {
                 text: getFullRoomUrl(),
-                width: 160,
-                height: 160,
+                width: 150,
+                height: 150,
                 colorDark: "#000000",
                 colorLight: "#ffffff",
                 correctLevel: QRCode.CorrectLevel.M
@@ -1767,15 +1850,6 @@
             } 
         });
 
-        function getStatusDotHtml(deviceType) {
-            if (deviceType === 'mobile') {
-                return `<div class="status-device-indicator" title="mobile"><div class="status-dot-mobile"></div></div>`;
-            } else if (deviceType === 'app') {
-                return `<div class="status-device-indicator" title="app"><div class="status-dot-app"></div></div>`;
-            }
-            return `<div class="status-device-indicator" title="pc"><div class="status-dot-pc"></div></div>`;
-        }
-
         function addUserCard(id, profile, isMe) {
             Object.keys(userProfiles).forEach(existingId => {
                 if (existingId !== id && userProfiles[existingId]?.deviceId === profile.deviceId) {
@@ -1815,7 +1889,7 @@
                     </div>
                     ${!isMe ? `
                     <button class="card-menu-btn" onclick="toggleCardMenu('${id}')" title="Настройки">
-                        <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle>
                         </svg>
                     </button>
@@ -1851,7 +1925,6 @@
             card.querySelector('.nick-text').innerText = nick; 
             card.querySelector('.user-name').style.color = color;
             
-            // Discord-style индикатор устройства в строке статуса
             const deviceType = profile.deviceType || 'pc';
             card.querySelector('.device-dot-container').innerHTML = getStatusDotHtml(deviceType);
 
@@ -1944,7 +2017,6 @@
                     await audioCtx.resume(); 
                 }
                 
-                // МАКСИМАЛЬНЫЙ АНТИ-ЭХО РЕЖИМ (AutoGainControl отключен для избежания усиления фонового звука)
                 localStream = await navigator.mediaDevices.getUserMedia({ 
                     audio: { 
                         echoCancellation: { ideal: true },
@@ -1968,7 +2040,7 @@
                     controlsPanel.style.display = 'flex'; 
                     updateHotkeysUI(); 
                     if(myProfile.avatar) profileBtn.innerHTML = `<img src="${myProfile.avatar}">`; 
-                }, 400);
+                }, 350);
                 
                 startPeerConnection();
             } catch (err) { 
