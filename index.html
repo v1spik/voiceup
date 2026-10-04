@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>voiceup</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <style>
+        :root { --bg: #000000; --bg-secondary: #111111; --text-main: #ffffff; --text-muted: #aaaaaa; --button-bg: #222222; --button-hover: #333333; --success: #50fa7b; --danger: #ff5555; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; font-weight: 400; }
+        body { background-color: var(--bg); color: var(--text-main); height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+        .app-name { position: absolute; top: 30px; font-size: 18px; font-weight: 700; letter-spacing: 2px; text-transform: lowercase; color: var(--text-muted); }
+        #profile-btn { position: absolute; top: 25px; left: 30px; width: 36px; height: 36px; border-radius: 50%; background-color: var(--button-bg); border: 1px solid #333; color: var(--text-muted); display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 200; transition: 0.2s; overflow: hidden; }
+        #profile-btn:hover { border-color: #666; color: var(--text-main); }
+        #profile-btn img { width: 100%; height: 100%; object-fit: cover; }
+        .lang-switch { position: absolute; top: 30px; right: 30px; font-size: 14px; color: var(--text-muted); z-index: 200; user-select: none; }
+        .lang-switch span { cursor: pointer; transition: color 0.2s; }
+        .lang-switch span.active { color: var(--text-main); font-weight: 500; }
+        #room-screen { flex: 1; padding: 20px; padding-bottom: 160px; display: flex; flex-wrap: wrap; align-content: center; align-items: center; gap: 20px; justify-content: center; opacity: 0; transition: opacity 0.5s ease; overflow-y: auto; height: 100%; }
+        #join-screen { position: absolute; background: var(--bg); padding: 40px; text-align: center; z-index: 100; display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 400px; }
+        h1 { font-size: 28px; font-weight: 500; text-transform: lowercase; }
+        input[type="text"] { background-color: var(--bg-secondary); color: var(--text-main); border: 1px solid #333; padding: 16px; font-size: 16px; border-radius: 4px; width: 100%; outline: none; text-align: center; transition: border-color 0.2s; }
+        input[type="text"]:focus { border-color: #666; }
+        button.primary-btn { background-color: var(--button-bg); color: var(--text-main); border: none; padding: 16px 0; font-size: 16px; font-weight: 500; border-radius: 4px; cursor: pointer; transition: 0.2s; text-transform: lowercase; width: 100%; }
+        button.primary-btn:hover { background-color: var(--button-hover); }
+        button.secondary-btn { background-color: transparent; color: var(--text-muted); border: 1px solid #333; padding: 16px 0; font-size: 16px; font-weight: 500; border-radius: 4px; cursor: pointer; transition: 0.2s; text-transform: lowercase; width: 100%; }
+        button.secondary-btn:hover { color: var(--text-main); border-color: #666; }
+        #profile-modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); display: none; justify-content: center; align-items: center; z-index: 300; }
+        .modal-content { background: var(--bg); border: 1px solid #333; padding: 30px; border-radius: 4px; width: 300px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        .avatar-upload { width: 80px; height: 80px; border-radius: 50%; background-color: var(--bg-secondary); border: 1px dashed #555; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative; }
+        .avatar-upload:hover { border-color: #888; }
+        .avatar-upload img { width: 100%; height: 100%; object-fit: cover; }
+        .avatar-upload span { font-size: 12px; color: var(--text-muted); position: absolute; }
+        #avatarInput { display: none; }
+        #removeAvatarBtn { color: var(--danger); font-size: 12px; cursor: pointer; margin-top: -10px; display: none; transition: 0.2s;}
+        #removeAvatarBtn:hover { text-decoration: underline; }
+        input[type="color"] { -webkit-appearance: none; border: 1px solid #333; width: 100%; height: 40px; border-radius: 4px; cursor: pointer; padding: 0; background-color: var(--bg-secondary); }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 2px; }
+        #resetProfileBtn { color: var(--text-muted); font-size: 12px; cursor: pointer; text-decoration: underline; transition: 0.2s; margin-top: -5px; }
+        #resetProfileBtn:hover { color: var(--danger); }
+        .modal-buttons { display: flex; gap: 10px; width: 100%; }
+        .user-card { background-color: transparent; width: 160px; height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: none; box-shadow: none; animation: popIn 0.4s ease; position: relative; }
+        @keyframes popIn { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
+        .avatar { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; background-color: var(--button-bg); margin-bottom: 15px; text-transform: lowercase; overflow: hidden; border: 1px solid #333; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+        .avatar.speaking { transform: scale(1.08); box-shadow: 0 0 0 3px var(--success); border-color: var(--success); }
+        .avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .user-name { font-size: 14px; font-weight: 500; text-transform: lowercase; display: flex; align-items: center; gap: 4px; }
+        .user-status { font-size: 12px; color: var(--text-muted); margin-top: 5px; display: flex; align-items: center; gap: 6px; text-transform: lowercase; height: 16px; }
+        .user-status::before { content: ''; display: block; width: 6px; height: 6px; background-color: var(--success); border-radius: 50%; transition: 0.3s; }
+        .status-icons { display: flex; gap: 4px; margin-left: 4px; }
+        .status-icons svg { width: 14px; height: 14px; color: var(--danger); }
+        .card-menu-btn { position: absolute; top: 10px; right: 10px; background: var(--bg-secondary); border: 1px solid #333; color: var(--text-muted); width: 28px; height: 28px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.2s; z-index: 10; }
+        .user-card:hover .card-menu-btn { opacity: 1; }
+        .card-menu-btn:hover { color: var(--text-main); border-color: #666; }
+        .card-dropdown { position: absolute; top: 45px; right: 10px; background: var(--bg-secondary); border: 1px solid #333; border-radius: 6px; padding: 12px; display: none; flex-direction: column; gap: 12px; z-index: 20; box-shadow: 0 8px 16px rgba(0,0,0,0.8); min-width: 150px; text-align: left; animation: fadeIn 0.15s ease-out; }
+        .card-dropdown.open { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        .local-controls { display: flex; align-items: center; gap: 8px; width: 100%; opacity: 1; margin: 0; padding: 0; }
+        .admin-controls { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #333; padding-top: 12px; }
+        .admin-btn { background: transparent; color: var(--text-muted); border: 1px solid #333; padding: 6px; border-radius: 4px; font-size: 12px; cursor: pointer; transition: 0.2s; text-transform: lowercase; text-align: left; }
+        .admin-btn:hover { color: var(--text-main); border-color: #666; background: rgba(255,255,255,0.05); }
+        .admin-btn.danger:hover { color: var(--danger); border-color: var(--danger); background: rgba(255,85,85,0.1); }
+        .loc-mute-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
+        .loc-mute-btn:hover { color: var(--text-main); }
+        .loc-mute-btn.muted { color: var(--danger); }
+        .loc-mute-btn svg { width: 18px; height: 18px; }
+        .loc-vol { -webkit-appearance: none; flex: 1; height: 4px; background: #333; border-radius: 2px; outline: none; cursor: pointer; }
+        .loc-vol::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--text-muted); transition: 0.2s; }
+        .loc-vol::-webkit-slider-thumb:hover { background: var(--text-main); transform: scale(1.2); }
+        #invite-link-box { position: absolute; bottom: 105px; left: 50%; transform: translateX(-50%); background-color: var(--text-main); color: var(--bg); font-size: 12px; font-weight: 500; padding: 8px 20px; border-radius: 4px; cursor: pointer; display: none; transition: background-color 0.2s, transform 0.2s; z-index: 50; box-shadow: 0 4px 12px rgba(255,255,255,0.1); text-transform: lowercase; }
+        #invite-link-box:hover { background-color: #e0e0e0; transform: translateX(-50%) translateY(-2px); }
+        #controls-panel { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: none; background-color: var(--bg-secondary); border: 1px solid #333; border-radius: 8px; padding: 8px; gap: 12px; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.6); align-items: center; }
+        .icon-btn { width: 44px; height: 44px; border-radius: 6px; background-color: var(--button-bg); border: none; color: var(--text-main); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; position: relative; }
+        .icon-btn:hover { background-color: var(--button-hover); }
+        .icon-btn svg { width: 22px; height: 22px; stroke-width: 2; }
+        .icon-btn.off { color: var(--danger); background-color: rgba(255, 85, 85, 0.1); }
+        .icon-btn.off::after { content: ''; position: absolute; width: 2px; height: 26px; background-color: var(--danger); transform: rotate(45deg); border-radius: 2px; box-shadow: 0 0 0 2px var(--bg-secondary); }
+        .icon-group { display: flex; background-color: var(--button-bg); border-radius: 6px; overflow: hidden; }
+        .icon-group .icon-btn { border-radius: 0; background-color: transparent; }
+        .icon-group .icon-btn:hover { background-color: rgba(255,255,255,0.05); }
+        .icon-group .icon-btn.off { background-color: rgba(255, 85, 85, 0.1); }
+        .leave-btn { background-color: var(--danger); color: var(--text-main); }
+        .leave-btn:hover { background-color: #ff3333; transform: scale(1.05); }
+        .hotkey-btn { background-color: transparent; color: var(--text-muted); border: none; border-left: 1px solid #333; padding: 0 10px; font-size: 12px; font-weight: 500; cursor: pointer; transition: color 0.2s; min-width: 36px; text-transform: uppercase; display: flex; align-items: center; justify-content: center; }
+        .hotkey-btn:hover { color: var(--text-main); }
+        .hotkey-btn.listening { color: var(--success); }
+        .hotkey-btn svg { width: 16px; height: 16px; stroke-width: 2; }
+        .cancel-hk { width: 14px; height: 14px; margin-left: 6px; color: var(--text-muted); transition: 0.2s; display: inline-block; }
+        .cancel-hk:hover { color: var(--danger); }
+        #chat-badge { position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; background-color: var(--danger); border-radius: 50%; display: none; box-shadow: 0 0 0 2px var(--bg-secondary); }
+        #chat-panel { position: absolute; inset: 0; z-index: 1000; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s; display: flex; justify-content: center; align-items: center; padding: 20px; padding-bottom: 100px; }
+        #chat-panel.open { opacity: 1; visibility: visible; }
+        .chat-inner { width: 100%; max-width: 700px; height: 100%; max-height: 80vh; background: var(--bg-secondary); border: 1px solid #333; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.8); transform-origin: bottom center; transform: scale(0.5) translateY(150px); transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1); }
+        #chat-panel.open .chat-inner { transform: scale(1) translateY(0); }
+        .chat-header { padding: 20px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; font-weight: 500; background: #1a1a1a; }
+        #close-chat { background: none; border: none; color: var(--text-muted); font-size: 28px; cursor: pointer; transition: 0.2s; line-height: 1; }
+        #close-chat:hover { color: var(--danger); transform: scale(1.1); }
+        #chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        .chat-msg { font-size: 14px; line-height: 1.4; word-wrap: break-word; }
+        .chat-img { max-width: 100%; border-radius: 4px; margin-top: 4px; display: block; border: 1px solid #333; }
+        .chat-file { display: inline-block; background: var(--button-bg); padding: 8px 12px; border-radius: 4px; color: var(--text-main); text-decoration: none; margin-top: 4px; font-size: 12px; border: 1px solid #333; transition: 0.2s; }
+        .chat-file:hover { background: var(--button-hover); border-color: #555; }
+        .chat-input-area { padding: 15px 20px; border-top: 1px solid #333; display: flex; gap: 10px; align-items: center; }
+        .chat-input-area input[type="text"] { flex: 1; padding: 12px; font-size: 14px; text-align: left; }
+        #chat-attach-btn { cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center; padding: 5px; transition: 0.2s;}
+        #chat-attach-btn:hover { color: var(--text-main); }
+        #chat-attach-btn svg { width: 20px; height: 20px; }
+        #chat-send { background: var(--button-bg); border: 1px solid #333; color: var(--text-main); width: 44px; height: 44px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        #chat-send:hover { background: var(--button-hover); }
+        #chat-send svg { width: 18px; height: 18px; }
+        #banned-screen { position: absolute; inset: 0; background: var(--bg); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; padding: 20px; }
+        #admin-notifications { position: absolute; top: 80px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 2000; }
+        .appeal-card { background: var(--bg-secondary); border: 1px solid #333; border-radius: 8px; padding: 15px; box-shadow: 0 8px 24px rgba(0,0,0,0.8); width: 280px; animation: slideIn 0.3s ease; text-align: left; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="app-name">voiceup</div>
+    <div class="lang-switch"><span id="lang-ru" class="active">ru</span> / <span id="lang-en">en</span></div>
+    <div id="profile-btn" title="настройки профиля">👤</div>
+
+    <div id="profile-modal">
+        <div class="modal-content">
+            <label class="avatar-upload" id="avatarPreviewBox">
+                <span id="avatarUploadText" class="trans-photo">фото</span>
+                <img id="avatarPreview" style="display:none;" src="" alt="avatar">
+                <input type="file" id="avatarInput" accept="image/png, image/jpeg, image/gif">
+            </label>
+            <div id="removeAvatarBtn" class="trans-remove-photo">удалить фото</div>
+            <div style="width: 100%; text-align: center; font-size: 12px; color: #aaa;" class="trans-color">цвет ника</div>
+            <input type="color" id="colorInput" value="#ffffff">
+            <div id="resetProfileBtn" class="trans-reset">сбросить настройки</div>
+            <div class="modal-buttons">
+                <button id="cancelProfileBtn" class="secondary-btn trans-cancel">отмена</button>
+                <button id="saveProfileBtn" class="primary-btn trans-save">сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="room-screen"></div>
+
+    <div id="join-screen">
+        <h1 id="welcome-title">добро пожаловать в voiceup</h1>
+        <input type="text" id="nicknameInput" placeholder="введите ваш никнейм" autocomplete="off" maxlength="15">
+        <button id="startBtn" class="primary-btn">войти</button>
+    </div>
+
+    <div id="banned-screen">
+        <h1 class="trans-banned-title" style="color: var(--danger); margin-bottom: 10px;">Доступ закрыт</h1>
+        <p class="trans-banned-desc" style="color: var(--text-muted); margin-bottom: 25px;">Вы были кикнуты из комнаты. Запросите доступ у администратора.</p>
+        <button id="appealBtn" class="primary-btn trans-req-access" style="max-width: 250px;">Запросить доступ</button>
+    </div>
+
+    <div id="admin-notifications"></div>
+    <div id="invite-link-box" class="trans-invite">ссылка приглашения</div>
+
+    <div id="controls-panel">
+        <div class="icon-group">
+            <button id="micBtn" class="icon-btn" title="Микрофон">
+                <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                </svg>
+            </button>
+            <button id="micHotkeyBtn" class="hotkey-btn" title="Хоткей микрофона"></button>
+        </div>
+        <div class="icon-group">
+            <button id="deafenBtn" class="icon-btn" title="Звук">
+                <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                    <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+                </svg>
+            </button>
+            <button id="deafenHotkeyBtn" class="hotkey-btn" title="Хоткей звука"></button>
+        </div>
+        <button id="chatBtn" class="icon-btn" title="Чат">
+            <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <div id="chat-badge"></div>
+        </button>
+        <button id="disconnectBtn" class="icon-btn leave-btn" title="Отключиться">
+            <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 17l5-5-5-5M19.8 12H9M10 3H4v18h6"></path>
+            </svg>
+        </button>
+    </div>
+
+    <div id="chat-panel">
+        <div class="chat-inner">
+            <div class="chat-header">
+                <span id="chat-title">чат</span>
+                <button id="close-chat">×</button>
+            </div>
+            <div id="chat-messages"></div>
+            <div class="chat-input-area">
+                <label id="chat-attach-btn" title="Прикрепить файл">
+                    <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                    </svg>
+                    <input type="file" id="chat-file-input" style="display:none;">
+                </label>
+                <input type="text" id="chat-input" placeholder="сообщение..." autocomplete="off">
+                <button id="chat-send">
+                    <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Контейнер для скрытых входящих аудио -->
+    <div id="webrtc-audio-container" style="display:none;"></div>
+
+    <!-- СКРИПТ ВНИЗУ, ЧТОБЫ ВСЕ КНОПКИ И ПОЛЯ БЫЛИ НАЙДЕНЫ -->
+    <script>
+        // 1. ОПРЕДЕЛЕНИЕ ХОСТА И КОМНАТЫ ПО ХЭШУ ССЫЛКИ
+        let roomCode = window.location.hash.replace('#', '').trim();
+        let isRoomHost = false;
+        let hostPeerId = "";
+        let myId = "";
+
+        if (!roomCode) {
+            isRoomHost = true;
+            roomCode = 'vu' + Math.random().toString(36).substring(2, 8);
+            hostPeerId = roomCode;
+            myId = roomCode;
+            window.location.hash = roomCode;
+        } else {
+            isRoomHost = false;
+            hostPeerId = roomCode;
+            myId = roomCode + '_' + Math.random().toString(36).substring(2, 8);
+        }
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let peer = null;
+        let localStream = null;
+        const activeConnections = {};
+        const activeCalls = {};
+        let chatOpen = false;
+        let isSpeaking = false;
+        let speakTimeout;
+
+        const dict = {
+            ru: { welcome: "добро пожаловать в voiceup", placeholder: "введите ваш никнейм", enterBtn: "войти", online: "на связи", you: " (вы)", guest: "гость", needMic: "для работы приложения необходим доступ к микрофону", needNick: "пожалуйста, введите никнейм", photo: "фото", removePhoto: "удалить фото", color: "цвет ника", save: "сохранить", cancel: "отмена", invite: "ссылка приглашения", copied: "ссылка скопирована!", chatTitle: "чат", chatInput: "сообщение...", fileTooBig: "Файл слишком большой (макс 5 МБ)", leaveBtn: "отключиться", reset: "сбросить настройки", localSound: "Локальный звук", adminPanel: "Админ панель", muteMic: "замутить", unmuteMic: "снять мут", kick: "кикнуть", adminMutedAlert: "админ запретил вам говорить!", bannedTitle: "Доступ закрыт", bannedDesc: "Вы были кикнуты из комнаты. Запросите доступ у администратора.", reqAccess: "Запросить доступ", reqSent: "Запрос отправлен...", adminAllowed: "Админ одобрил ваш запрос!", wantsToJoin: "просит впустить его обратно", letIn: "Пустить", hide: "Скрыть" },
+            en: { welcome: "welcome to voiceup", placeholder: "enter your nickname", enterBtn: "enter", online: "online", you: " (you)", guest: "guest", needMic: "microphone access is required", needNick: "please enter a nickname", photo: "photo", removePhoto: "remove photo", color: "nick color", save: "save", cancel: "cancel", invite: "invite link", copied: "link copied!", chatTitle: "chat", chatInput: "message...", fileTooBig: "File is too large (max 5 MB)", leaveBtn: "disconnect", reset: "reset profile", localSound: "Local sound", adminPanel: "Admin panel", muteMic: "server mute", unmuteMic: "remove mute", kick: "kick", adminMutedAlert: "admin disabled your mic!", bannedTitle: "Access Denied", bannedDesc: "You have been kicked. Request access from the administrator.", reqAccess: "Request Access", reqSent: "Request Sent...", adminAllowed: "Admin approved your request!", wantsToJoin: "requests to be let back in", letIn: "Allow", hide: "Ignore" }
+        };
+
+        let currentLang = 'ru';
+        let myProfile = JSON.parse(localStorage.getItem('voiceup_profile')) || { nick: "", color: "#ffffff", avatar: "" };
+        myProfile.isAdmin = isRoomHost;
+
+        function getDeviceId() {
+            let fp = localStorage.getItem('voiceup_hwid');
+            if (!fp) {
+                const guid = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                fp = 'hw_' + guid; 
+                localStorage.setItem('voiceup_hwid', fp);
+            } return fp;
+        }
+        myProfile.deviceId = getDeviceId();
+
+        let bannedDevices = JSON.parse(localStorage.getItem('voiceup_banned_devices')) || {};
+        let ignoredAppeals = JSON.parse(localStorage.getItem('voiceup_ignored_appeals')) || {};
+        let micHotkey = localStorage.getItem('voiceup_hotkey') || null; 
+        let deafenHotkey = localStorage.getItem('voiceup_deafen_hotkey') || null;
+        
+        const userProfiles = {}; const userStates = {}; const localPeerSettings = {}; 
+        let micEnabled = true; let adminMuted = false; let soundEnabled = true;
+        let isAssigningMicHotkey = false; let isAssigningDeafenHotkey = false;
+
+        // ПЕРЕСЫЛКА СООБЩЕНИЙ ПО P2P СЕТКЕ
+        function broadcastSignaling(msgObj) {
+            for (const pid in activeConnections) {
+                if (activeConnections[pid] && activeConnections[pid].open) {
+                    try { activeConnections[pid].send(msgObj); } catch(e) {}
+                }
+            }
+        }
+
+        function sendToPeer(targetId, msgObj) {
+            if (activeConnections[targetId] && activeConnections[targetId].open) {
+                try { activeConnections[targetId].send(msgObj); } catch(e) {}
+            }
+        }
+
+        function handleIncomingSignal(remoteId, message) {
+            const peerId = message.id || remoteId;
+            const peerProfile = message.profile || { nick: dict[currentLang].guest, color: '#ffffff', avatar: '' };
+
+            if (myProfile.isAdmin && message.type === 'join') {
+                if (bannedDevices[message.profile?.deviceId]) {
+                    sendToPeer(peerId, { type: 'banned_reject', target: peerId, senderName: myProfile.nick });
+                    return;
+                }
+            }
+
+            if (myProfile.isAdmin && message.type === 'ban_appeal') {
+                if (ignoredAppeals[message.deviceId]) return; 
+                const notifId = `appeal-${message.deviceId}`; 
+                if (document.getElementById(notifId)) return; 
+                const notif = document.createElement('div'); notif.id = notifId; notif.className = 'appeal-card';
+                notif.innerHTML = `<div style="font-size:14px; margin-bottom:12px;"><b>${escapeHTML(message.nick)}</b> ${dict[currentLang].wantsToJoin}.</div><div style="display:flex; gap:8px;"><button class="primary-btn" style="padding:8px; font-size:12px;" onclick="acceptAppeal('${message.id}', '${message.deviceId}')">${dict[currentLang].letIn}</button><button class="secondary-btn" style="padding:8px; font-size:12px; border-color:var(--danger); color:var(--danger);" onclick="ignoreAppeal('${message.deviceId}')">${dict[currentLang].hide}</button></div>`;
+                document.getElementById('admin-notifications').appendChild(notif); return;
+            }
+
+            if (message.type === 'banned_reject' && message.target === myId) {
+                localStorage.setItem('voiceup_banned', 'true');
+                showBannedScreen();
+                return;
+            }
+
+            if (message.type === 'admin_kick') {
+                if (message.target === myId) {
+                    localStorage.setItem('voiceup_banned', 'true');
+                    broadcastSignaling({ type: 'leave', id: myId });
+                    showBannedScreen();
+                } else {
+                    const cardExists = !!document.getElementById(`card-${message.target}`);
+                    removeUserCard(message.target);
+                    if (cardExists) playUiSound('leave');
+                }
+                return;
+            }
+
+            if (message.type === 'appeal_accepted' && message.target === myId) {
+                localStorage.removeItem('voiceup_banned');
+                alert(dict[currentLang].adminAllowed);
+                window.location.reload();
+                return;
+            }
+
+            if (!localStream) return;
+
+            if (message.type === 'leave') {
+                const cardExists = !!document.getElementById(`card-${peerId}`);
+                removeUserCard(peerId);
+                if (activeCalls[peerId]) { activeCalls[peerId].close(); delete activeCalls[peerId]; }
+                const a = document.getElementById(`audio-${peerId}`); if (a) a.remove();
+                if (cardExists) playUiSound('leave');
+                return;
+            }
+
+            if (message.type === 'admin_mute' && message.target === myId) { adminMuted = true; updateMicHardware(); return; }
+            if (message.type === 'admin_unmute' && message.target === myId) { adminMuted = false; updateMicHardware(); return; }
+            if (message.type === 'status') { userStates[peerId] = message.state; updateCardVisuals(peerId, userProfiles[peerId] || peerProfile, false); return; }
+            if (message.type === 'update-profile') { userProfiles[peerId] = peerProfile; updateCardVisuals(peerId, peerProfile, false); return; }
+
+            if (message.type === 'join') {
+                addUserCard(peerId, peerProfile, false);
+                userStates[peerId] = message.state || {mic: true, deaf: false, adminMuted: false};
+                updateCardVisuals(peerId, peerProfile, false);
+
+                sendToPeer(peerId, { 
+                    type: 'hello', 
+                    target: peerId, 
+                    id: myId, 
+                    profile: myProfile, 
+                    state: userStates[myId],
+                    peerList: isRoomHost ? Object.keys(activeConnections).filter(k => k !== peerId) : []
+                });
+
+                callVoicePeer(peerId);
+            }
+            else if (message.type === 'hello' && message.target === myId) {
+                addUserCard(peerId, peerProfile, false);
+                userStates[peerId] = message.state || {mic: true, deaf: false, adminMuted: false};
+                updateCardVisuals(peerId, peerProfile, false);
+
+                if (message.peerList && message.peerList.length > 0) {
+                    message.peerList.forEach(otherId => {
+                        if (otherId !== myId && !activeConnections[otherId]) {
+                            connectDataToPeer(otherId);
+                        }
+                    });
+                }
+            }
+            else if (message.type === 'chat') {
+                handleIncomingMessage(peerId, message.data);
+            }
+        }
+
+        // PEERJS + GOOGLE STUN
+        function initPeerEngine() {
+            peer = new Peer(myId, {
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' }
+                    ]
+                }
+            });
+
+            peer.on('open', () => {
+                if (!isRoomHost) {
+                    connectDataToPeer(hostPeerId);
+                }
+            });
+
+            peer.on('connection', (conn) => {
+                setupDataConnection(conn);
+            });
+
+            peer.on('call', (call) => {
+                call.answer(localStream);
+                call.on('stream', (remoteStream) => {
+                    attachRemoteAudio(call.peer, remoteStream);
+                });
+                activeCalls[call.peer] = call;
+            });
+        }
+
+        function connectDataToPeer(remoteId) {
+            if (activeConnections[remoteId]) return;
+            const conn = peer.connect(remoteId);
+            setupDataConnection(conn);
+        }
+
+        function setupDataConnection(conn) {
+            activeConnections[conn.peer] = conn;
+            conn.on('open', () => {
+                conn.send({
+                    type: 'join',
+                    id: myId,
+                    profile: myProfile,
+                    state: userStates[myId]
+                });
+            });
+            conn.on('data', (data) => {
+                handleIncomingSignal(conn.peer, data);
+            });
+            conn.on('close', () => {
+                delete activeConnections[conn.peer];
+                removeUserCard(conn.peer);
+            });
+        }
+
+        function callVoicePeer(remoteId) {
+            if (!peer || !localStream || activeCalls[remoteId]) return;
+            const call = peer.call(remoteId, localStream);
+            if (call) {
+                call.on('stream', (stream) => {
+                    attachRemoteAudio(remoteId, stream);
+                });
+                activeCalls[remoteId] = call;
+            }
+        }
+
+        function attachRemoteAudio(peerId, remoteStream) {
+            let audio = document.getElementById(`audio-${peerId}`);
+            if (!audio) {
+                audio = document.createElement('audio');
+                audio.id = `audio-${peerId}`;
+                audio.autoplay = true;
+                audio.style.display = 'none';
+                document.getElementById('webrtc-audio-container').appendChild(audio);
+            }
+            audio.srcObject = remoteStream;
+            const vol = localPeerSettings[peerId] ? localPeerSettings[peerId].volume : 1;
+            const isMuted = localPeerSettings[peerId] ? localPeerSettings[peerId].muted : false;
+            audio.volume = isMuted ? 0 : vol;
+            audio.play().catch(() => {});
+
+            setupSpeakingDetector(peerId, remoteStream);
+        }
+
+        function setupSpeakingDetector(peerId, stream) {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const src = audioCtx.createMediaStreamSource(stream);
+                const analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 256;
+                src.connect(analyser);
+                const data = new Uint8Array(analyser.frequencyBinCount);
+
+                const checkVoice = () => {
+                    const card = document.getElementById(`card-${peerId}`);
+                    if (!card) return;
+                    analyser.getByteFrequencyData(data);
+                    let sum = 0;
+                    for (let i = 0; i < data.length; i++) sum += data[i];
+                    let avg = sum / data.length;
+                    const avatar = card.querySelector('.avatar');
+                    if (avatar) {
+                        if (avg > 14) avatar.classList.add('speaking');
+                        else avatar.classList.remove('speaking');
+                    }
+                    requestAnimationFrame(checkVoice);
+                };
+                requestAnimationFrame(checkVoice);
+            } catch(e) {}
+        }
+
+        function playUiSound(action) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            function playTone(type, freq, tStart, tDuration, sweepFreq = null) {
+                const osc = audioCtx.createOscillator(); 
+                const gainNode = audioCtx.createGain();
+                osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+                osc.type = type; osc.frequency.setValueAtTime(freq, tStart);
+                if (sweepFreq) osc.frequency.exponentialRampToValueAtTime(sweepFreq, tStart + tDuration);
+                gainNode.gain.setValueAtTime(0, tStart); 
+                gainNode.gain.linearRampToValueAtTime(0.05, tStart + 0.02);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, tStart + tDuration - 0.01); 
+                gainNode.gain.setValueAtTime(0, tStart + tDuration);
+                osc.start(tStart); osc.stop(tStart + tDuration);
+            }
+            if (action === 'mic_on') playTone('sine', 400, now, 0.15, 800); 
+            else if (action === 'mic_off') playTone('sine', 800, now, 0.15, 400); 
+            else if (action === 'deafen_off') playTone('triangle', 150, now, 0.15, 300); 
+            else if (action === 'deafen_on') playTone('triangle', 300, now, 0.15, 150); 
+            else if (action === 'join') { playTone('sine', 523.25, now, 0.15); playTone('sine', 659.25, now + 0.15, 0.3); } 
+            else if (action === 'leave') { playTone('triangle', 349.23, now, 0.12); playTone('triangle', 261.63, now + 0.14, 0.2); } 
+            else if (action === 'chat_msg') { playTone('sine', 600, now, 0.05, 800); playTone('sine', 600, now + 0.06, 0.05, 800); }
+        }
+
+        // ПОЛУЧЕНИЕ ЭЛЕМЕНТОВ DOM
+        const elWelcome = document.getElementById('welcome-title'); 
+        const elInput = document.getElementById('nicknameInput');
+        const elBtn = document.getElementById('startBtn'); 
+        const profileBtn = document.getElementById('profile-btn');
+        const profileModal = document.getElementById('profile-modal'); 
+        const saveProfileBtn = document.getElementById('saveProfileBtn');
+        const cancelProfileBtn = document.getElementById('cancelProfileBtn'); 
+        const resetProfileBtn = document.getElementById('resetProfileBtn');
+        const colorInput = document.getElementById('colorInput'); 
+        const avatarInput = document.getElementById('avatarInput');
+        const avatarPreview = document.getElementById('avatarPreview'); 
+        const avatarUploadText = document.getElementById('avatarUploadText');
+        const removeAvatarBtn = document.getElementById('removeAvatarBtn'); 
+        const inviteBox = document.getElementById('invite-link-box');
+        const controlsPanel = document.getElementById('controls-panel'); 
+        const micBtn = document.getElementById('micBtn');
+        const deafenBtn = document.getElementById('deafenBtn'); 
+        const micHotkeyBtn = document.getElementById('micHotkeyBtn');
+        const deafenHotkeyBtn = document.getElementById('deafenHotkeyBtn'); 
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const joinScreen = document.getElementById('join-screen'); 
+        const roomScreen = document.getElementById('room-screen');
+        const bannedScreen = document.getElementById('banned-screen');
+        const chatPanel = document.getElementById('chat-panel'); 
+        const chatBtn = document.getElementById('chatBtn'); 
+        const closeChatBtn = document.getElementById('close-chat'); 
+        const chatBadge = document.getElementById('chat-badge'); 
+        const chatInput = document.getElementById('chat-input'); 
+        const chatSend = document.getElementById('chat-send'); 
+        const chatFileInput = document.getElementById('chat-file-input'); 
+
+        const svgKeyboard = `<svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6.01" y2="8"></line><line x1="10" y1="8" x2="10.01" y2="8"></line><line x1="14" y1="8" x2="14.01" y2="8"></line><line x1="18" y1="8" x2="18.01" y2="8"></line><line x1="6" y1="12" x2="6.01" y2="12"></line><line x1="10" y1="12" x2="10.01" y2="12"></line><line x1="14" y1="12" x2="14.01" y2="12"></line><line x1="18" y1="12" x2="18.01" y2="12"></line><line x1="8" y1="16" x2="16" y2="16"></line></svg>`;
+        const svgCross = `<svg class="cancel-hk" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+        const badgeMicOff = `<svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
+        const badgeDeafOff = `<svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path><line x1="2" y1="2" x2="22" y2="22"></line></svg>`;
+        const svgLocUnmute = `<svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
+        const svgLocMute = `<svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="1" x2="1" y2="23"></line><line x1="15.54" y1="8.46" x2="15.54" y2="8.46"></line></svg>`;
+        const svgAdmin = `<svg title="Админ" style="width: 14px; height: 14px; margin-left: 4px; vertical-align: -2px; color: var(--text-muted);" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`;
+
+        if (myProfile.nick) elInput.value = myProfile.nick;
+
+        function formatKey(key) { 
+            if (!key) return null; if (key === ' ') return 'SPC'; if (key === 'Meta') return 'WIN'; 
+            if (key === 'Control') return 'CTRL'; if (key === 'Shift') return 'SHIFT'; 
+            if (key === 'Alt') return 'ALT'; if (key === 'Escape') return null; return key.toUpperCase(); 
+        }
+
+        function updateHotkeysUI() {
+            if (isAssigningMicHotkey) micHotkeyBtn.innerHTML = `... ${svgCross}`; 
+            else if (micHotkey) micHotkeyBtn.innerHTML = `${micHotkey} ${svgCross}`; 
+            else micHotkeyBtn.innerHTML = svgKeyboard;
+            if (isAssigningDeafenHotkey) deafenHotkeyBtn.innerHTML = `... ${svgCross}`; 
+            else if (deafenHotkey) deafenHotkeyBtn.innerHTML = `${deafenHotkey} ${svgCross}`; 
+            else deafenHotkeyBtn.innerHTML = svgKeyboard;
+
+            const micCross = micHotkeyBtn.querySelector('.cancel-hk'); 
+            if (micCross) micCross.onclick = (e) => { e.stopPropagation(); isAssigningMicHotkey = false; micHotkeyBtn.classList.remove('listening'); micHotkey = null; localStorage.removeItem('voiceup_hotkey'); updateHotkeysUI(); };
+            const deafenCross = deafenHotkeyBtn.querySelector('.cancel-hk'); 
+            if (deafenCross) deafenCross.onclick = (e) => { e.stopPropagation(); isAssigningDeafenHotkey = false; deafenHotkeyBtn.classList.remove('listening'); deafenHotkey = null; localStorage.removeItem('voiceup_deafen_hotkey'); updateHotkeysUI(); };
+        }
+
+        function setLanguage(lang) {
+            currentLang = lang; 
+            document.getElementById('lang-ru').classList.toggle('active', lang === 'ru'); 
+            document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+            elWelcome.innerText = dict[lang].welcome; elInput.placeholder = dict[lang].placeholder; elBtn.innerText = dict[lang].enterBtn; 
+            document.querySelector('.trans-photo').innerText = dict[lang].photo; document.querySelector('.trans-remove-photo').innerText = dict[lang].removePhoto; 
+            document.querySelector('.trans-color').innerText = dict[lang].color; document.querySelector('.trans-save').innerText = dict[lang].save; 
+            document.querySelector('.trans-cancel').innerText = dict[lang].cancel; document.querySelector('.trans-reset').innerText = dict[lang].reset; 
+            document.getElementById('chat-title').innerText = dict[lang].chatTitle; document.getElementById('chat-input').placeholder = dict[lang].chatInput; 
+            disconnectBtn.title = dict[lang].leaveBtn;
+            if (inviteBox.innerText !== dict['ru'].copied && inviteBox.innerText !== dict['en'].copied) inviteBox.innerText = dict[lang].invite;
+            document.querySelectorAll('.status-text').forEach(el => el.innerText = dict[lang].online);
+            document.querySelectorAll('.user-card').forEach(card => { 
+                const id = card.id.replace('card-', ''); const profile = id === myId ? myProfile : userProfiles[id]; 
+                const isMe = id === myId; const adminBadge = (profile && profile.isAdmin) ? svgAdmin : ''; 
+                card.querySelector('.is-me-badge').innerHTML = (isMe ? dict[lang].you : '') + adminBadge; 
+            });
+            document.querySelectorAll('.trans-local-sound').forEach(el => el.innerText = dict[lang].localSound); 
+            document.querySelectorAll('.trans-admin-panel').forEach(el => el.innerText = dict[lang].adminPanel); 
+            document.querySelectorAll('.trans-kick').forEach(el => el.innerText = dict[lang].kick); 
+            document.querySelector('.trans-banned-title').innerText = dict[lang].bannedTitle; 
+            document.querySelector('.trans-banned-desc').innerText = dict[lang].bannedDesc;
+            const appBtn = document.getElementById('appealBtn'); if (appBtn && !appBtn.disabled) appBtn.innerText = dict[lang].reqAccess;
+            Object.keys(userStates).forEach(id => { 
+                const btn = document.getElementById(`card-${id}`)?.querySelector('.admin-mute-btn'); 
+                if (btn) btn.innerText = userStates[id].adminMuted ? dict[lang].unmuteMic : dict[lang].muteMic; 
+            });
+        }
+        document.getElementById('lang-ru').onclick = () => setLanguage('ru'); document.getElementById('lang-en').onclick = () => setLanguage('en');
+
+        inviteBox.onclick = async () => { 
+            let linkToCopy = window.location.href;
+            try { 
+                await navigator.clipboard.writeText(linkToCopy); 
+                showCopiedSuccess();
+            } catch (err) {
+                const tempInput = document.createElement("input"); tempInput.value = linkToCopy; document.body.appendChild(tempInput); tempInput.select();
+                try { document.execCommand("copy"); showCopiedSuccess(); } catch (e) {} document.body.removeChild(tempInput);
+            } 
+        };
+        function showCopiedSuccess() { inviteBox.innerText = dict[currentLang].copied; setTimeout(() => { inviteBox.innerText = dict[currentLang].invite; }, 2000); }
+
+        function openProfile() {
+            colorInput.value = myProfile.color || '#ffffff';
+            if (myProfile.avatar) { avatarPreview.src = myProfile.avatar; avatarPreview.style.display = 'block'; avatarUploadText.style.display = 'none'; removeAvatarBtn.style.display = 'block'; } 
+            else { avatarPreview.style.display = 'none'; avatarUploadText.style.display = 'block'; removeAvatarBtn.style.display = 'none'; }
+            profileModal.style.display = 'flex';
+        }
+        profileBtn.onclick = openProfile;
+        
+        avatarInput.onchange = (e) => { 
+            const file = e.target.files[0]; if (!file) return; 
+            const reader = new FileReader(); 
+            reader.onload = (event) => { 
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas'); const MAX_SIZE = 150; 
+                    let width = img.width; let height = img.height;
+                    if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } } 
+                    else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
+                    canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+                    avatarPreview.src = canvas.toDataURL('image/jpeg', 0.8); avatarPreview.style.display = 'block'; avatarUploadText.style.display = 'none'; removeAvatarBtn.style.display = 'block'; 
+                }; img.src = event.target.result;
+            }; reader.readAsDataURL(file); 
+        };
+
+        removeAvatarBtn.onclick = () => { avatarPreview.src = ""; avatarPreview.style.display = 'none'; avatarUploadText.style.display = 'block'; removeAvatarBtn.style.display = 'none'; avatarInput.value = ""; };
+        cancelProfileBtn.onclick = () => { profileModal.style.display = 'none'; avatarInput.value = ""; };
+        
+        resetProfileBtn.onclick = () => {
+            myProfile.color = "#ffffff"; myProfile.avatar = ""; colorInput.value = "#ffffff"; avatarPreview.src = ""; avatarPreview.style.display = 'none'; avatarUploadText.style.display = 'block'; removeAvatarBtn.style.display = 'none'; avatarInput.value = ""; 
+            localStorage.setItem('voiceup_profile', JSON.stringify(myProfile)); profileBtn.innerHTML = `👤`; updateCardVisuals(myId, myProfile, true); 
+            broadcastSignaling({ type: 'update-profile', id: myId, profile: myProfile });
+            profileModal.style.display = 'none';
+        };
+
+        saveProfileBtn.onclick = () => {
+            myProfile.color = colorInput.value; myProfile.avatar = (avatarPreview.style.display === 'block') ? avatarPreview.src : "";
+            localStorage.setItem('voiceup_profile', JSON.stringify(myProfile)); profileModal.style.display = 'none';
+            profileBtn.innerHTML = myProfile.avatar ? `<img src="${myProfile.avatar}">` : `👤`; updateCardVisuals(myId, myProfile, true); 
+            broadcastSignaling({ type: 'update-profile', id: myId, profile: myProfile });
+        };
+
+        window.changeLocalVolume = (id, vol) => { 
+            if (!localPeerSettings[id]) localPeerSettings[id] = { volume: 1, muted: false }; 
+            localPeerSettings[id].volume = parseFloat(vol); 
+            const audio = document.getElementById(`audio-${id}`);
+            if (audio && !localPeerSettings[id].muted) audio.volume = parseFloat(vol);
+        };
+        
+        window.toggleLocalMute = (id) => { 
+            if (!localPeerSettings[id]) localPeerSettings[id] = { volume: 1, muted: false }; 
+            localPeerSettings[id].muted = !localPeerSettings[id].muted; 
+            const audio = document.getElementById(`audio-${id}`);
+            if (audio) audio.volume = localPeerSettings[id].muted ? 0 : localPeerSettings[id].volume;
+            updateCardVisuals(id, userProfiles[id], false); 
+        };
+
+        window.sendAdminAction = (action, targetId) => {
+            if (!myProfile.isAdmin) return; 
+            const targetDeviceId = userProfiles[targetId]?.deviceId || 'unknown';
+            if (action === 'kick') { 
+                bannedDevices[targetDeviceId] = true; localStorage.setItem('voiceup_banned_devices', JSON.stringify(bannedDevices)); 
+                const cardExists = !!document.getElementById(`card-${targetId}`); removeUserCard(targetId); 
+                if (cardExists) playUiSound('leave'); 
+            }
+            broadcastSignaling({ type: `admin_${action}`, target: targetId, senderName: myProfile.nick });
+            toggleCardMenu(targetId); 
+        };
+        
+        window.toggleAdminMute = (targetId) => { 
+            const isServerMuted = userStates[targetId] && userStates[targetId].adminMuted; 
+            sendAdminAction(isServerMuted ? 'unmute' : 'mute', targetId); 
+        };
+
+        function broadcastStatus() { 
+            const actualMic = micEnabled && !adminMuted; 
+            userStates[myId] = { mic: actualMic, deaf: !soundEnabled, adminMuted: adminMuted }; 
+            updateCardVisuals(myId, myProfile, true); 
+            broadcastSignaling({ type: 'status', id: myId, state: userStates[myId] });
+        }
+        
+        function updateMicHardware() { 
+            if (!localStream) return; 
+            const actualMic = micEnabled && !adminMuted; 
+            localStream.getAudioTracks()[0].enabled = actualMic; 
+            micBtn.classList.toggle('off', !actualMic); 
+            broadcastStatus(); 
+        }
+        
+        function toggleMic() { 
+            if (!localStream) return; 
+            if (adminMuted) { alert(dict[currentLang].adminMutedAlert); return; } 
+            micEnabled = !micEnabled; playUiSound(micEnabled ? 'mic_on' : 'mic_off'); updateMicHardware(); 
+        }
+        
+        function toggleDeafen() { 
+            soundEnabled = !soundEnabled; 
+            document.querySelectorAll('#webrtc-audio-container audio').forEach(a => a.muted = !soundEnabled);
+            deafenBtn.classList.toggle('off', !soundEnabled); playUiSound(soundEnabled ? 'deafen_off' : 'deafen_on'); broadcastStatus(); 
+        }
+
+        micBtn.onclick = toggleMic; deafenBtn.onclick = toggleDeafen;
+        
+        micHotkeyBtn.onclick = () => { 
+            if (isAssigningMicHotkey) { isAssigningMicHotkey = false; micHotkeyBtn.classList.remove('listening'); updateHotkeysUI(); return; } 
+            isAssigningMicHotkey = true; isAssigningDeafenHotkey = false; micHotkeyBtn.classList.add('listening'); deafenHotkeyBtn.classList.remove('listening'); updateHotkeysUI(); 
+        };
+        deafenHotkeyBtn.onclick = () => { 
+            if (isAssigningDeafenHotkey) { isAssigningDeafenHotkey = false; deafenHotkeyBtn.classList.remove('listening'); updateHotkeysUI(); return; } 
+            isAssigningDeafenHotkey = true; isAssigningMicHotkey = false; deafenHotkeyBtn.classList.add('listening'); micHotkeyBtn.classList.remove('listening'); updateHotkeysUI(); 
+        };
+
+        function leaveRoom() { 
+            broadcastSignaling({ type: 'leave', id: myId });
+            if (localStream) localStream.getTracks().forEach(track => track.stop()); 
+            document.getElementById('room-screen').innerHTML = ''; 
+            window.location.href = window.location.pathname; 
+        }
+        
+        disconnectBtn.onclick = leaveRoom; 
+        window.addEventListener('beforeunload', () => { broadcastSignaling({ type: 'leave', id: myId }); });
+        
+        window.addEventListener('keydown', (e) => { 
+            if (isAssigningMicHotkey) { micHotkey = formatKey(e.key); if (micHotkey) localStorage.setItem('voiceup_hotkey', micHotkey); isAssigningMicHotkey = false; micHotkeyBtn.classList.remove('listening'); updateHotkeysUI(); e.preventDefault(); return; } 
+            if (isAssigningDeafenHotkey) { deafenHotkey = formatKey(e.key); if (deafenHotkey) localStorage.setItem('voiceup_deafen_hotkey', deafenHotkey); isAssigningDeafenHotkey = false; deafenHotkeyBtn.classList.remove('listening'); updateHotkeysUI(); e.preventDefault(); return; } 
+            if (document.activeElement.tagName === 'INPUT') return; 
+            const pressedKey = formatKey(e.key); 
+            if (micHotkey && pressedKey === micHotkey) { toggleMic(); e.preventDefault(); } 
+            if (deafenHotkey && pressedKey === deafenHotkey) { toggleDeafen(); e.preventDefault(); } 
+        });
+        
+        chatBtn.onclick = () => { chatOpen = true; chatPanel.classList.add('open'); chatBadge.style.display = 'none'; chatInput.focus(); };
+        closeChatBtn.onclick = () => { chatOpen = false; chatPanel.classList.remove('open'); };
+        chatPanel.onclick = (e) => { if (e.target === chatPanel) closeChatBtn.onclick(); };
+
+        function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
+        
+        function appendChatMessage(id, msgObj) {
+            const msgDiv = document.createElement('div'); msgDiv.className = 'chat-msg'; 
+            const profile = id === myId ? myProfile : (userProfiles[id] || {nick: dict[currentLang].guest, color: '#ffffff'}); 
+            let contentHtml = '';
+            if (msgObj.type === 'text') { contentHtml = `<span>${escapeHTML(msgObj.text)}</span>`; } 
+            else if (msgObj.type === 'file') { 
+                if (msgObj.mime.startsWith('image/')) contentHtml = `<img src="${msgObj.data}" class="chat-img" alt="${escapeHTML(msgObj.name)}">`; 
+                else contentHtml = `<a href="${msgObj.data}" download="${escapeHTML(msgObj.name)}" class="chat-file">📎 ${escapeHTML(msgObj.name)}</a>`; 
+            }
+            msgDiv.innerHTML = `<b style="color:${profile.color}">${escapeHTML(profile.nick)}</b>: ${contentHtml}`; 
+            document.getElementById('chat-messages').appendChild(msgDiv); document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+        }
+        
+        function handleIncomingMessage(peerId, msgObj) { 
+            appendChatMessage(peerId, msgObj); if (!chatOpen) chatBadge.style.display = 'block'; playUiSound('chat_msg'); 
+        }
+
+        chatSend.onclick = () => { 
+            const text = chatInput.value.trim(); if (!text) return; 
+            chatInput.value = ''; const msgObj = { type: 'text', text: text }; 
+            broadcastSignaling({ type: 'chat', id: myId, data: msgObj });
+            appendChatMessage(myId, msgObj); 
+        }; 
+        chatInput.onkeydown = (e) => { if (e.key === 'Enter') chatSend.onclick(); };
+        
+        chatFileInput.onchange = (e) => { 
+            const file = e.target.files[0]; if (!file) return; 
+            if (file.size > 5 * 1024 * 1024) { alert(dict[currentLang].fileTooBig); e.target.value = ''; return; } 
+            const reader = new FileReader(); 
+            reader.onload = (event) => { 
+                const msgObj = { type: 'file', name: file.name, mime: file.type, data: event.target.result }; 
+                broadcastSignaling({ type: 'chat', id: myId, data: msgObj });
+                appendChatMessage(myId, msgObj); 
+            }; 
+            reader.readAsDataURL(file); e.target.value = ''; 
+        };
+
+        function startLocalSpeakingDetector() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const micNode = audioCtx.createMediaStreamSource(localStream);
+            const processorNode = audioCtx.createScriptProcessor(2048, 1, 1);
+            micNode.connect(processorNode);
+
+            processorNode.onaudioprocess = (e) => {
+                const actualMic = micEnabled && !adminMuted;
+                if (!actualMic) return;
+
+                const inputData = e.inputBuffer.getChannelData(0);
+                let sum = 0;
+                for(let i=0; i<inputData.length; i++) sum += inputData[i] * inputData[i];
+                let rms = Math.sqrt(sum / inputData.length);
+
+                if (rms >= 0.015) {
+                    if (!isSpeaking) {
+                        isSpeaking = true;
+                        const myCard = document.getElementById(`card-${myId}`);
+                        if (myCard) myCard.querySelector('.avatar').classList.add('speaking');
+                    }
+                    clearTimeout(speakTimeout);
+                    speakTimeout = setTimeout(() => {
+                        isSpeaking = false;
+                        const myCard = document.getElementById(`card-${myId}`);
+                        if (myCard) myCard.querySelector('.avatar').classList.remove('speaking');
+                    }, 400);
+                }
+            };
+
+            const dummyGain = audioCtx.createGain();
+            dummyGain.gain.value = 0;
+            processorNode.connect(dummyGain);
+            dummyGain.connect(audioCtx.destination);
+        }
+
+        function getColor(id) { let hash = 0; for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash); return `hsl(0, 0%, ${30 + (Math.abs(hash) % 30)}%)`; }
+        window.toggleCardMenu = function(id) { document.querySelectorAll('.card-dropdown').forEach(menu => { if (menu.id !== `menu-${id}`) menu.classList.remove('open'); }); const menu = document.getElementById(`menu-${id}`); if (menu) menu.classList.toggle('open'); };
+        document.addEventListener('click', (e) => { if (!e.target.closest('.user-card')) { document.querySelectorAll('.card-dropdown').forEach(menu => menu.classList.remove('open')); } });
+
+        function addUserCard(id, profile, isMe) {
+            Object.keys(userProfiles).forEach(existingId => {
+                if (existingId !== id && userProfiles[existingId].deviceId === profile.deviceId) {
+                    removeUserCard(existingId);
+                    delete userProfiles[existingId];
+                    delete userStates[existingId];
+                }
+            });
+
+            const isNew = !document.getElementById(`card-${id}`); userProfiles[id] = profile; 
+            if(!userStates[id]) userStates[id] = { mic: true, deaf: false, adminMuted: false }; 
+            if(!localPeerSettings[id]) localPeerSettings[id] = { volume: 1, muted: false };
+            updateCardVisuals(id, profile, isMe); 
+            if (isNew && !isMe) setTimeout(() => playUiSound('join'), 500);
+        }
+
+        function updateCardVisuals(id, profile, isMe) {
+            let card = document.getElementById(`card-${id}`); 
+            const state = userStates[id] || { mic: true, deaf: false, adminMuted: false }; 
+            if(!card) {
+                card = document.createElement('div'); card.className = 'user-card'; card.id = `card-${id}`;
+                card.innerHTML = `<div class="avatar"></div><div class="user-name"><span class="nick-text"></span><span class="is-me-badge"></span></div><div class="user-status"><span class="status-text"></span><div class="status-icons"></div></div>
+                    ${!isMe ? `<button class="card-menu-btn" onclick="toggleCardMenu('${id}')" title="Настройки"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg></button>
+                    <div class="card-dropdown" id="menu-${id}"><div class="trans-local-sound" style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">${dict[currentLang].localSound}</div><div class="local-controls"><button class="loc-mute-btn" title="Локальный мут"></button><input type="range" class="loc-vol" min="0" max="1" step="0.05" title="Громкость"></div><div class="admin-controls" style="display:none;"><div class="trans-admin-panel" style="font-size: 11px; color: var(--danger); margin-bottom: 4px;">${dict[currentLang].adminPanel}</div><button class="admin-btn admin-mute-btn" onclick="toggleAdminMute('${id}')">${state.adminMuted ? dict[currentLang].unmuteMic : dict[currentLang].muteMic}</button><button class="admin-btn danger trans-kick" onclick="sendAdminAction('kick', '${id}')">${dict[currentLang].kick}</button></div></div>` : ''}`;
+                roomScreen.appendChild(card); 
+                if (!isMe) { card.querySelector('.loc-vol').oninput = (e) => changeLocalVolume(id, e.target.value); card.querySelector('.loc-mute-btn').onclick = () => toggleLocalMute(id); }
+            }
+            
+            const locSet = localPeerSettings[id] || { volume: 1, muted: false }; const nick = profile.nick || dict[currentLang].guest; const color = profile.color || '#ffffff'; const bgColor = getColor(id); const initial = nick.substring(0, 2); const avatarHtml = profile.avatar ? `<img src="${profile.avatar}">` : initial;
+            card.querySelector('.avatar').style.backgroundColor = bgColor; card.querySelector('.avatar').innerHTML = avatarHtml; card.querySelector('.nick-text').innerText = nick; card.querySelector('.user-name').style.color = color;
+            const adminBadge = profile.isAdmin ? svgAdmin : ''; card.querySelector('.is-me-badge').innerHTML = (isMe ? dict[currentLang].you : '') + adminBadge; card.querySelector('.status-text').innerText = dict[currentLang].online;
+            let iconsHtml = ''; if (!state.mic) iconsHtml += badgeMicOff; if (state.deaf) iconsHtml += badgeDeafOff; card.querySelector('.status-icons').innerHTML = iconsHtml;
+            
+            if (!isMe) {
+                card.querySelector('.loc-vol').value = locSet.volume; card.querySelector('.loc-mute-btn').innerHTML = locSet.muted ? svgLocMute : svgLocUnmute; card.querySelector('.loc-mute-btn').className = `loc-mute-btn ${locSet.muted ? 'muted' : ''}`;
+                if (myProfile.isAdmin) card.querySelector('.admin-controls').style.display = 'flex'; 
+                const adminMuteBtn = card.querySelector('.admin-mute-btn'); if (adminMuteBtn) adminMuteBtn.innerText = state.adminMuted ? dict[currentLang].unmuteMic : dict[currentLang].muteMic; 
+            }
+        }
+
+        function removeUserCard(id) { const card = document.getElementById(`card-${id}`); if(card) card.remove(); }
+        function showBannedScreen() { if (localStream) localStream.getTracks().forEach(t => t.stop()); joinScreen.style.display = 'none'; roomScreen.style.display = 'none'; controlsPanel.style.display = 'none'; chatPanel.classList.remove('open'); bannedScreen.style.display = 'flex'; }
+
+        document.getElementById('appealBtn').onclick = () => {
+            const nick = elInput.value.trim() || myProfile.nick || dict[currentLang].guest; 
+            broadcastSignaling({ type: 'ban_appeal', id: myId, nick: nick, deviceId: myProfile.deviceId });
+            document.getElementById('appealBtn').innerText = dict[currentLang].reqSent; document.getElementById('appealBtn').disabled = true; document.getElementById('appealBtn').style.opacity = '0.5';
+        };
+
+        window.acceptAppeal = (targetId, deviceId) => {
+            delete bannedDevices[deviceId]; localStorage.setItem('voiceup_banned_devices', JSON.stringify(bannedDevices));
+            const notif = document.getElementById(`appeal-${deviceId}`); if (notif) notif.remove(); 
+            broadcastSignaling({ type: 'appeal_accepted', target: targetId });
+        };
+        
+        window.ignoreAppeal = (deviceId) => { ignoredAppeals[deviceId] = true; localStorage.setItem('voiceup_ignored_appeals', JSON.stringify(ignoredAppeals)); const notif = document.getElementById(`appeal-${deviceId}`); if (notif) notif.remove(); };
+
+        elBtn.onclick = async () => {
+            if (localStorage.getItem('voiceup_banned') === 'true') { return showBannedScreen(); }
+            const inputVal = elInput.value.trim(); if (!inputVal) return alert(dict[currentLang].needNick);
+            
+            myProfile.nick = inputVal; localStorage.setItem('voiceup_profile', JSON.stringify(myProfile));
+            
+            try {
+                if (audioCtx.state === 'suspended') {
+                    await audioCtx.resume(); 
+                }
+                
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: { 
+                        echoCancellation: true, 
+                        noiseSuppression: true, 
+                        autoGainControl: true,
+                        googEchoCancellation: true,
+                        googNoiseSuppression: true
+                    }, 
+                    video: false 
+                });
+                
+                joinScreen.style.opacity = '0';
+                setTimeout(() => { 
+                    joinScreen.style.display = 'none'; roomScreen.style.opacity = '1'; profileBtn.style.display = 'flex'; inviteBox.style.display = 'block'; controlsPanel.style.display = 'flex'; updateHotkeysUI(); 
+                    if(myProfile.avatar) profileBtn.innerHTML = `<img src="${myProfile.avatar}">`; 
+                }, 400);
+                
+                userStates[myId] = { mic: micEnabled, deaf: !soundEnabled, adminMuted: adminMuted }; 
+                addUserCard(myId, myProfile, true);
+                
+                initPeerEngine();
+                startLocalSpeakingDetector();
+            } catch (err) { 
+                console.error("Ошибка при входе:", err);
+                alert(dict[currentLang].needMic + "\nПодробности для дебага: " + err.message); 
+            }
+        };
+
+        // Запуск языковой локализации по умолчанию
+        setLanguage('ru');
+    </script>
+</body>
+</html>
