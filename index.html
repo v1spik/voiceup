@@ -114,7 +114,10 @@
         #admin-notifications { position: absolute; top: 80px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 2000; }
         .appeal-card { background: var(--bg-secondary); border: 1px solid #333; border-radius: 8px; padding: 15px; box-shadow: 0 8px 24px rgba(0,0,0,0.8); width: 280px; animation: slideIn 0.3s ease; text-align: left; }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .room-indicator { font-size: 12px; color: var(--text-muted); letter-spacing: 1px; }
+        
+        .room-box { display: flex; gap: 8px; width: 100%; }
+        .room-box input { flex: 1; padding: 10px; font-size: 13px; text-align: center; border-radius: 4px; }
+        #roomStatusBadge { font-size: 12px; color: var(--text-muted); letter-spacing: 0.5px; margin-top: -5px; }
     </style>
 </head>
 <body>
@@ -144,7 +147,10 @@
 
     <div id="join-screen">
         <h1 id="welcome-title">добро пожаловать в voiceup</h1>
-        <div id="roomStatusDisplay" class="room-indicator">определение комнаты...</div>
+        <div id="roomStatusBadge">комната: ...</div>
+        <div class="room-box">
+            <input type="text" id="roomCodeInput" placeholder="код комнаты" autocomplete="off">
+        </div>
         <input type="text" id="nicknameInput" placeholder="введите ваш никнейм" autocomplete="off" maxlength="15">
         <button id="startBtn" class="primary-btn">войти</button>
     </div>
@@ -220,37 +226,114 @@
     <div id="webrtc-audio-container" style="display:none;"></div>
 
     <script>
-        // === 1. ЖЕЛЕЗНЫЙ ПАРСИНГ КОМНАТЫ (ИЗ ?room= ИЛИ ИЗ #) ===
+        const dict = {
+            ru: { 
+                welcome: "добро пожаловать в voiceup", 
+                placeholder: "введите ваш никнейм", 
+                roomPlaceholder: "код комнаты",
+                enterBtn: "войти", 
+                online: "на связи", 
+                you: " (вы)", 
+                guest: "гость", 
+                needMic: "для работы приложения необходим доступ к микрофону", 
+                needNick: "пожалуйста, введите никнейм", 
+                photo: "фото", 
+                removePhoto: "удалить фото", 
+                color: "цвет ника", 
+                save: "сохранить", 
+                cancel: "отмена", 
+                invite: "ссылка приглашения", 
+                copied: "ссылка скопирована!", 
+                chatTitle: "чат", 
+                chatInput: "сообщение...", 
+                fileTooBig: "Файл слишком большой (макс 5 МБ)", 
+                leaveBtn: "отключиться", 
+                reset: "сбросить настройки", 
+                localSound: "Локальный звук", 
+                adminPanel: "Админ панель", 
+                muteMic: "замутить", 
+                unmuteMic: "снять мут", 
+                kick: "кикнуть", 
+                adminMutedAlert: "админ запретил вам говорить!", 
+                bannedTitle: "Доступ закрыт", 
+                bannedDesc: "Вы были кикнуты из комнаты. Запросите доступ у администратора.", 
+                reqAccess: "Запросить доступ", 
+                reqSent: "Запрос отправлен...", 
+                adminAllowed: "Админ одобрил ваш запрос!", 
+                wantsToJoin: "просит впустить его обратно", 
+                letIn: "Пустить", 
+                hide: "Скрыть",
+                roomStatusHost: "вы создатель комнаты: ",
+                roomStatusGuest: "подключение к комнате: "
+            },
+            en: { 
+                welcome: "welcome to voiceup", 
+                placeholder: "enter your nickname", 
+                roomPlaceholder: "room code",
+                enterBtn: "enter", 
+                online: "online", 
+                you: " (you)", 
+                guest: "guest", 
+                needMic: "microphone access is required", 
+                needNick: "please enter a nickname", 
+                photo: "photo", 
+                removePhoto: "remove photo", 
+                color: "nick color", 
+                save: "save", 
+                cancel: "cancel", 
+                invite: "invite link", 
+                copied: "link copied!", 
+                chatTitle: "chat", 
+                chatInput: "message...", 
+                fileTooBig: "File is too large (max 5 MB)", 
+                leaveBtn: "disconnect", 
+                reset: "reset profile", 
+                localSound: "Local sound", 
+                adminPanel: "Admin panel", 
+                muteMic: "server mute", 
+                unmuteMic: "remove mute", 
+                kick: "kick", 
+                adminMutedAlert: "admin disabled your mic!", 
+                bannedTitle: "Access Denied", 
+                bannedDesc: "You have been kicked. Request access from the administrator.", 
+                reqAccess: "Request Access", 
+                reqSent: "Request Sent...", 
+                adminAllowed: "Admin approved your request!", 
+                wantsToJoin: "requests to be let back in", 
+                letIn: "Allow", 
+                hide: "Ignore",
+                roomStatusHost: "you are the room host: ",
+                roomStatusGuest: "joining room: "
+            }
+        };
+
+        let currentLang = 'ru';
+
+        // 1. ИНИЦИАЛИЗАЦИЯ КОДА КОМНАТЫ
         const urlParams = new URLSearchParams(window.location.search);
-        let roomCode = urlParams.get('room') || window.location.hash.replace('#', '').trim();
+        let activeRoom = urlParams.get('room') || window.location.hash.replace('#', '').trim();
         
+        if (!activeRoom) {
+            activeRoom = 'vup' + Math.random().toString(36).substring(2, 7);
+            window.history.replaceState(null, '', window.location.pathname + '?room=' + activeRoom);
+        }
+
+        const roomCodeInput = document.getElementById('roomCodeInput');
+        const roomStatusBadge = document.getElementById('roomStatusBadge');
+        roomCodeInput.value = activeRoom;
+
         let isRoomHost = false;
-        let hostPeerId = "";
         let myId = "";
+        let hostPeerId = "";
 
-        if (!roomCode) {
-            // МЫ ХОСТ (создаем комнату)
-            isRoomHost = true;
-            roomCode = 'vup' + Math.random().toString(36).substring(2, 7);
-            hostPeerId = roomCode;
-            myId = roomCode;
-            // Ставим параметр в адресную строку без перезагрузки
-            window.history.replaceState(null, '', window.location.pathname + '?room=' + roomCode);
-        } else {
-            // МЫ ГОСТЬ (подключаемся к хосту)
-            isRoomHost = false;
-            hostPeerId = roomCode;
-            myId = roomCode + 'p' + Math.random().toString(36).substring(2, 6);
+        function updateRoomUI() {
+            activeRoom = roomCodeInput.value.trim() || 'vup100';
+            hostPeerId = activeRoom + '_host';
+            const statusText = isRoomHost ? dict[currentLang].roomStatusHost : dict[currentLang].roomStatusGuest;
+            roomStatusBadge.innerText = statusText + activeRoom;
+            roomStatusBadge.style.color = isRoomHost ? "var(--success)" : "var(--text-muted)";
         }
-
-        const roomStatusDisplay = document.getElementById('roomStatusDisplay');
-        if (isRoomHost) {
-            roomStatusDisplay.innerText = "создание комнаты: " + roomCode;
-            roomStatusDisplay.style.color = "var(--success)";
-        } else {
-            roomStatusDisplay.innerText = "вход в комнату: " + roomCode;
-            roomStatusDisplay.style.color = "var(--text-muted)";
-        }
+        roomCodeInput.oninput = updateRoomUI;
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         let peer = null;
@@ -261,14 +344,7 @@
         let isSpeaking = false;
         let speakTimeout;
 
-        const dict = {
-            ru: { welcome: "добро пожаловать в voiceup", placeholder: "введите ваш никнейм", enterBtn: "войти", online: "на связи", you: " (вы)", guest: "гость", needMic: "для работы приложения необходим доступ к микрофону", needNick: "пожалуйста, введите никнейм", photo: "фото", removePhoto: "удалить фото", color: "цвет ника", save: "сохранить", cancel: "отмена", invite: "ссылка приглашения", copied: "ссылка скопирована!", chatTitle: "чат", chatInput: "сообщение...", fileTooBig: "Файл слишком большой (макс 5 МБ)", leaveBtn: "отключиться", reset: "сбросить настройки", localSound: "Локальный звук", adminPanel: "Админ панель", muteMic: "замутить", unmuteMic: "снять мут", kick: "кикнуть", adminMutedAlert: "админ запретил вам говорить!", bannedTitle: "Доступ закрыт", bannedDesc: "Вы были кикнуты из комнаты. Запросите доступ у администратора.", reqAccess: "Запросить доступ", reqSent: "Запрос отправлен...", adminAllowed: "Админ одобрил ваш запрос!", wantsToJoin: "просит впустить его обратно", letIn: "Пустить", hide: "Скрыть" },
-            en: { welcome: "welcome to voiceup", placeholder: "enter your nickname", enterBtn: "enter", online: "online", you: " (you)", guest: "guest", needMic: "microphone access is required", needNick: "please enter a nickname", photo: "photo", removePhoto: "remove photo", color: "nick color", save: "save", cancel: "cancel", invite: "invite link", copied: "link copied!", chatTitle: "chat", chatInput: "message...", fileTooBig: "File is too large (max 5 MB)", leaveBtn: "disconnect", reset: "reset profile", localSound: "Local sound", adminPanel: "Admin panel", muteMic: "server mute", unmuteMic: "remove mute", kick: "kick", adminMutedAlert: "admin disabled your mic!", bannedTitle: "Access Denied", bannedDesc: "You have been kicked. Request access from the administrator.", reqAccess: "Request Access", reqSent: "Request Sent...", adminAllowed: "Admin approved your request!", wantsToJoin: "requests to be let back in", letIn: "Allow", hide: "Ignore" }
-        };
-
-        let currentLang = 'ru';
         let myProfile = JSON.parse(localStorage.getItem('voiceup_profile')) || { nick: "", color: "#ffffff", avatar: "" };
-        myProfile.isAdmin = isRoomHost;
 
         function getDeviceId() {
             let fp = localStorage.getItem('voiceup_hwid');
@@ -370,7 +446,6 @@
                 userStates[peerId] = message.state || {mic: true, deaf: false, adminMuted: false};
                 updateCardVisuals(peerId, peerProfile, false);
 
-                // Отправляем ответ
                 sendToPeer(peerId, { 
                     type: 'hello', 
                     target: peerId, 
@@ -400,24 +475,49 @@
             }
         }
 
-        // PEERJS + GOOGLE STUN
-        function initPeerEngine() {
-            peer = new Peer(myId, {
-                config: {
-                    iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' },
-                        { urls: 'stun:stun2.l.google.com:19302' }
-                    ]
-                }
+        // 2. АВТО-ОПРЕДЕЛЕНИЕ РОЛИ ХОСТ / ГОСТЬ В PEERJS
+        function startPeerConnection() {
+            activeRoom = roomCodeInput.value.trim() || 'vup100';
+            hostPeerId = activeRoom + '_host';
+
+            // Сначала пробуем зарегистрироваться как ХОСТ
+            const testHostPeer = new Peer(hostPeerId, {
+                config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] }
             });
 
-            peer.on('open', () => {
-                if (!isRoomHost) {
-                    connectDataToPeer(hostPeerId);
-                }
+            testHostPeer.on('open', (id) => {
+                // МЫ ХОСТ (никто еще не занял комнату)
+                peer = testHostPeer;
+                isRoomHost = true;
+                myId = hostPeerId;
+                myProfile.isAdmin = true;
+                updateRoomUI();
+                bindPeerEvents();
             });
 
+            testHostPeer.on('error', (err) => {
+                if (err.type === 'unavailable-id') {
+                    // ХОСТ УЖЕ ЕСТЬ В СЕТИ! Значит мы - ГОСТЬ
+                    testHostPeer.destroy();
+                    isRoomHost = false;
+                    myProfile.isAdmin = false;
+                    myId = activeRoom + '_g_' + Math.random().toString(36).substring(2, 7);
+                    updateRoomUI();
+
+                    peer = new Peer(myId, {
+                        config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] }
+                    });
+
+                    peer.on('open', () => {
+                        bindPeerEvents();
+                        // Сразу стучимся к Хосту
+                        connectDataToPeer(hostPeerId);
+                    });
+                }
+            });
+        }
+
+        function bindPeerEvents() {
             peer.on('connection', (conn) => {
                 setupDataConnection(conn);
             });
@@ -428,13 +528,6 @@
                     attachRemoteAudio(call.peer, remoteStream);
                 });
                 activeCalls[call.peer] = call;
-            });
-
-            peer.on('error', (err) => {
-                console.error("PeerJS error:", err);
-                if (err.type === 'peer-unavailable') {
-                    alert("Создатель комнаты еще не зашел или ссылка неверная!");
-                }
             });
         }
 
@@ -609,11 +702,18 @@
             currentLang = lang; 
             document.getElementById('lang-ru').classList.toggle('active', lang === 'ru'); 
             document.getElementById('lang-en').classList.toggle('active', lang === 'en');
-            elWelcome.innerText = dict[lang].welcome; elInput.placeholder = dict[lang].placeholder; elBtn.innerText = dict[lang].enterBtn; 
-            document.querySelector('.trans-photo').innerText = dict[lang].photo; document.querySelector('.trans-remove-photo').innerText = dict[lang].removePhoto; 
-            document.querySelector('.trans-color').innerText = dict[lang].color; document.querySelector('.trans-save').innerText = dict[lang].save; 
-            document.querySelector('.trans-cancel').innerText = dict[lang].cancel; document.querySelector('.trans-reset').innerText = dict[lang].reset; 
-            document.getElementById('chat-title').innerText = dict[lang].chatTitle; document.getElementById('chat-input').placeholder = dict[lang].chatInput; 
+            elWelcome.innerText = dict[lang].welcome; 
+            elInput.placeholder = dict[lang].placeholder; 
+            roomCodeInput.placeholder = dict[lang].roomPlaceholder;
+            elBtn.innerText = dict[lang].enterBtn; 
+            document.querySelector('.trans-photo').innerText = dict[lang].photo; 
+            document.querySelector('.trans-remove-photo').innerText = dict[lang].removePhoto; 
+            document.querySelector('.trans-color').innerText = dict[lang].color; 
+            document.querySelector('.trans-save').innerText = dict[lang].save; 
+            document.querySelector('.trans-cancel').innerText = dict[lang].cancel; 
+            document.querySelector('.trans-reset').innerText = dict[lang].reset; 
+            document.getElementById('chat-title').innerText = dict[lang].chatTitle; 
+            document.getElementById('chat-input').placeholder = dict[lang].chatInput; 
             disconnectBtn.title = dict[lang].leaveBtn;
             if (inviteBox.innerText !== dict['ru'].copied && inviteBox.innerText !== dict['en'].copied) inviteBox.innerText = dict[lang].invite;
             document.querySelectorAll('.status-text').forEach(el => el.innerText = dict[lang].online);
@@ -632,13 +732,12 @@
                 const btn = document.getElementById(`card-${id}`)?.querySelector('.admin-mute-btn'); 
                 if (btn) btn.innerText = userStates[id].adminMuted ? dict[lang].unmuteMic : dict[lang].muteMic; 
             });
+            updateRoomUI();
         }
         document.getElementById('lang-ru').onclick = () => setLanguage('ru'); document.getElementById('lang-en').onclick = () => setLanguage('en');
 
-        // КНОПКА КОПИРОВАНИЯ ССЫЛКИ С ЖЕЛЕЗНЫМ ПАРАМЕТРОМ ?room=
         inviteBox.onclick = async () => { 
-            // Собираем правильную ссылку с параметром ?room=КОД
-            const cleanUrl = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/?room=' + roomCode;
+            const cleanUrl = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/?room=' + encodeURIComponent(activeRoom);
             try { 
                 await navigator.clipboard.writeText(cleanUrl); 
                 showCopiedSuccess();
@@ -950,7 +1049,8 @@
                 userStates[myId] = { mic: micEnabled, deaf: !soundEnabled, adminMuted: adminMuted }; 
                 addUserCard(myId, myProfile, true);
                 
-                initPeerEngine();
+                // Автоматически определяем хоста и подключаемся
+                startPeerConnection();
                 startLocalSpeakingDetector();
             } catch (err) { 
                 console.error("Ошибка при входе:", err);
