@@ -737,22 +737,21 @@
         } catch (e) {}
 
         const MAX_PINNED_ROOMS = 5;
-        const PRESENCE_INTERVAL_MS = 2500;
-        const CALL_SETUP_TIMEOUT_MS = 15000;
+        const PRESENCE_INTERVAL_MS = 2200;
+        const RTC_OFFER_TIMEOUT_MS = 10000;
         const PEER_STALE_TIMEOUT_MS = 12000;
-        const PEER_DEAD_TIMEOUT_MS = 22000;
+        const PEER_DEAD_TIMEOUT_MS = 20000;
 
-        // ПРОВЕРЕННЫЙ КОНФИГ STUN/TURN ИЗ РАБОЧЕЙ ВЕРСИИ (ДЛЯ РАЗНЫХ ДОМОВ И ПРОВАЙДЕРОВ)
-        const PEER_CONFIG = {
-            config: {
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' },
-                    { urls: 'stun:stun2.l.google.com:19302' },
-                    { urls: 'turn:relay.metered.ca:80', username: 'metered', credential: 'Password123' },
-                    { urls: 'turn:relay.metered.ca:443', username: 'metered', credential: 'Password123' }
-                ]
-            }
+        // КОНФИГУРАЦИЯ НАТИВНОГО WEBRTC (БЫСТРЫЕ STUN СЕРВЕРЫ GOOGLE + CLOUDFLARE)
+        const RTC_CONFIG = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun.cloudflare.com:3478' }
+            ],
+            iceCandidatePoolSize: 4
         };
 
         const dict = {
@@ -923,7 +922,7 @@
 
         function updateNetQualityDOM(peerId, quality, rtt) {
             if (!peerHealth[peerId]) {
-                peerHealth[peerId] = { lastSeen: Date.now(), rtt: rtt || 35, quality: quality || 'good', reconnecting: false, discoveredAt: Date.now() };
+                peerHealth[peerId] = { lastSeen: Date.now(), rtt: rtt || 35, quality: quality || 'good', discoveredAt: Date.now() };
             } else {
                 if (quality) peerHealth[peerId].quality = quality;
                 if (typeof rtt === 'number') peerHealth[peerId].rtt = rtt;
@@ -1066,7 +1065,7 @@
             }
         }
 
-        // СОСТОЯНИЕ НЕУБИВАЕМОЙ СИНХРОНИЗАЦИИ И WEBRTC СВЯЗИ
+        // СОСТОЯНИЕ НЕУБИВАЕМОЙ СИНХРОНИЗАЦИИ И ДВУХУРОВНЕВОЙ ГОЛОСОВОЙ СВЯЗИ
         let myId = "";
         let myJoinTimestamp = 0;
         let roomCreatorDeviceId = "";
@@ -1077,8 +1076,6 @@
         let ntfySocket = null;
         let localBroadcastChannel = null;
         let isInRoom = false;
-        let isMyPeerOpen = false;
-        let peerDisconnectedSince = 0;
         let isReplacingMicTrack = false;
 
         // ХРАНЕНИЕ БАНОВ СТРОГО ДЛЯ ТЕКУЩЕЙ КОМНАТЫ (activeRoom)
@@ -1184,7 +1181,7 @@
                 delete pendingAppealPeers[deviceId];
             }
             broadcastSignaling(unbanMsg);
-            publishToDiscoveryBus(unbanMsg);
+            publishNtfyEvent(unbanMsg);
             showToast(dict[currentLang].unbannedToast);
         };
 
@@ -1206,18 +1203,30 @@
         }
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        let peer = null;
         let localStream = null;
         let localMicSource = null;
-        let localVoiceLoopRunning = false;
-        const activeConnections = {};
-        const connectionAttemptTs = {};
-        const activeCalls = {};
-        const callStartedAt = {};
-        const callDisconnectedSince = {};
-        const remotePeerReady = {};
+
+        // Структуры нативного WebRTC (Уровень 1)
+        const rtcPeers = {};
+        const rtcOfferCreatedAt = {};
+        const rtcDisconnectedSince = {};
+        const pendingIceCandidates = {};
         const remoteStreams = {};
         const remoteAudioAnalysers = {};
+        const webrtcInboundActive = {};
+        const lastInboundBytes = {};
+
+        // Структуры WSS Audio Relay (Уровень 2 — неубиваемый резерв)
+        let relayProcessorNode = null;
+        let relaySourceNode = null;
+        let relayZeroGainNode = null;
+        let relaySeq = 0;
+        let lastVoiceActiveTs = 0;
+        const relayPeerGainNodes = {};
+        const relayNextPlayTime = {};
+        const relaySpeakTimers = {};
+        const seenRelaySeqs = new Set();
+
         const peerHealth = {};
         const peerJoinTimestamps = {};
         const lastReconnectReqTs = {};
@@ -1311,7 +1320,6 @@
 
             let electedAdminId = "";
 
-            // 1) Если настоящий создатель комнаты (roomCreatorDeviceId) сейчас онлайн — корона принадлежит строго ему
             if (roomCreatorDeviceId) {
                 for (let i = 0; i < onlinePeers.length; i++) {
                     const pid = onlinePeers[i];
@@ -1323,7 +1331,6 @@
                 }
             }
 
-            // 2) Если создатель вышел — права временно у того, кто зашел раньше всех
             if (!electedAdminId) {
                 const sorted = [...onlinePeers].sort((a, b) => {
                     const tsA = peerJoinTimestamps[a] || Number.MAX_SAFE_INTEGER;
@@ -1372,26 +1379,17 @@
             }
         }
 
-        // СТРОГОЕ ПРАВИЛО ОДНОГО ИНИЦИАТОРА (КАК В РАБОЧЕЙ ВЕРСИИ): ЗВОНИТ ТОЛЬКО peerA > peerB
+        // СТРОГОЕ ПРАВИЛО ОДНОГО ИНИЦИАТОРА WEBRTC: ОФФЕР СОЗДАЕТ ТОЛЬКО peerA > peerB
         function shouldInitiateCall(peerA, peerB) {
             return String(peerA) > String(peerB);
         }
 
         function broadcastSignaling(msgObj) {
-            for (const pid in activeConnections) {
-                if (activeConnections[pid] && activeConnections[pid].open) {
-                    try { activeConnections[pid].send(msgObj); } catch(e) {}
-                }
-            }
             publishToDiscoveryBus(msgObj);
         }
 
         function sendToPeer(targetId, msgObj) {
-            if (activeConnections[targetId] && activeConnections[targetId].open) {
-                try { activeConnections[targetId].send(msgObj); } catch(e) {}
-            } else {
-                publishToDiscoveryBus({ ...msgObj, target: targetId });
-            }
+            publishToDiscoveryBus({ ...msgObj, target: targetId });
         }
 
         function showToast(msg) {
@@ -1401,14 +1399,13 @@
         }
 
         // =========================================================================
-        // МНОГОКАНАЛЬНАЯ СИСТЕМА ОБНАРУЖЕНИЯ УЧАСТНИКОВ (DISCOVERY BUS)
+        // МНОГОКАНАЛЬНАЯ ШИНА СИНХРОНИЗАЦИИ И СИГНАЛИЗАЦИИ WEBRTC + АУДИО РЕЛЕЙ
         // =========================================================================
         function buildPresencePacket(packetType = 'presence') {
             return {
                 type: packetType,
                 room: activeRoom,
                 id: myId,
-                peerReady: Boolean(isMyPeerOpen && peer && !peer.destroyed && !peer.disconnected),
                 deviceId: myProfile.deviceId,
                 profile: myProfile,
                 state: userStates[myId] || { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted },
@@ -1428,8 +1425,7 @@
             const jsonStr = JSON.stringify({
                 ...payload,
                 room: activeRoom,
-                senderId: myId,
-                peerReady: Boolean(isMyPeerOpen && peer && !peer.destroyed && !peer.disconnected)
+                senderId: myId
             });
             const topic = `voiceup/v4/room/${activeRoom}`;
 
@@ -1448,6 +1444,35 @@
             } catch (e) {}
         }
 
+        // Отправка голосового чанка по WSS Audio Relay (только в один активный брокер для исключения дублей)
+        function publishAudioRelayPacket(audioPayload) {
+            if (!audioPayload || !activeRoom || !isInRoom) return;
+            const jsonStr = JSON.stringify({
+                ...audioPayload,
+                room: activeRoom,
+                id: myId
+            });
+            const audioTopic = `voiceup/v4/audio/${activeRoom}`;
+
+            let sentViaMqtt = false;
+            for (let i = 0; i < mqttClients.length; i++) {
+                const client = mqttClients[i];
+                if (client && client.connected) {
+                    try {
+                        client.publish(audioTopic, jsonStr, { qos: 0 });
+                        sentViaMqtt = true;
+                        break;
+                    } catch (e) {}
+                }
+            }
+
+            try {
+                if (localBroadcastChannel) {
+                    localBroadcastChannel.postMessage(jsonStr);
+                }
+            } catch (e) {}
+        }
+
         function publishNtfyEvent(payload) {
             try {
                 fetch(`https://ntfy.sh/${getDiscoveryTopic()}`, {
@@ -1455,8 +1480,7 @@
                     body: JSON.stringify({
                         ...payload,
                         room: activeRoom,
-                        senderId: myId,
-                        peerReady: Boolean(isMyPeerOpen && peer && !peer.destroyed && !peer.disconnected)
+                        senderId: myId
                     })
                 }).catch(() => {});
             } catch (e) {}
@@ -1474,13 +1498,14 @@
             const remoteId = data.id || data.senderId;
             if (!remoteId || remoteId === myId) return;
 
-            if (typeof data.peerReady === 'boolean') {
-                remotePeerReady[remoteId] = data.peerReady;
+            if (data.type === 'audio_relay') {
+                handleAudioRelayPacket(remoteId, data);
+                return;
             }
 
             if (data.type && data.type !== 'presence' && data.type !== 'presence_ack') {
                 if (!data.target || data.target === myId || myProfile.isAdmin) {
-                    handleIncomingSignal(remoteId, data, false);
+                    handleIncomingSignal(remoteId, data);
                 }
                 return;
             }
@@ -1510,7 +1535,6 @@
                     pendingAppealPeers[incomingProfile.deviceId] = remoteId;
                     const rejectMsg = { type: 'banned_reject', target: remoteId, deviceId: incomingProfile.deviceId, senderName: myProfile.nick };
                     sendToPeer(remoteId, rejectMsg);
-                    publishToDiscoveryBus(rejectMsg);
                     return;
                 }
             }
@@ -1521,12 +1545,9 @@
             if (data.creatorDeviceId) {
                 syncCreatorDeviceId(data.creatorDeviceId, remoteId, data.joinTimestamp);
             }
-            if (typeof data.peerReady === 'boolean') {
-                remotePeerReady[remoteId] = data.peerReady;
-            }
 
             if (!peerHealth[remoteId]) {
-                peerHealth[remoteId] = { lastSeen: Date.now(), rtt: 35, quality: 'good', reconnecting: false, discoveredAt: Date.now() };
+                peerHealth[remoteId] = { lastSeen: Date.now(), rtt: 35, quality: 'good', discoveredAt: Date.now() };
             } else {
                 peerHealth[remoteId].lastSeen = Date.now();
                 if (!peerHealth[remoteId].discoveredAt) peerHealth[remoteId].discoveredAt = Date.now();
@@ -1542,11 +1563,8 @@
             addUserCard(remoteId, incomingProfile, false);
             recalculateRoomAdmin();
 
-            // Соединяемся строго тогда, когда ОБА PeerJS узла открыты на 0.peerjs.com!
-            if (isMyPeerOpen && remotePeerReady[remoteId] === true) {
-                connectDataToPeer(remoteId);
-                evaluateVoiceCall(remoteId);
-            }
+            // Запускаем прямое WebRTC соединение через рабочую шину (без 0.peerjs.com!)
+            evaluateVoiceCall(remoteId);
         }
 
         function startMultiBrokerDiscovery() {
@@ -1564,7 +1582,8 @@
                     'wss://broker.emqx.io:8084/mqtt',
                     'wss://broker.hivemq.com:8884/mqtt'
                 ];
-                const topic = `voiceup/v4/room/${activeRoom}`;
+                const roomTopic = `voiceup/v4/room/${activeRoom}`;
+                const audioTopic = `voiceup/v4/audio/${activeRoom}`;
 
                 brokers.forEach(brokerUrl => {
                     try {
@@ -1572,10 +1591,10 @@
                             clientId: 'vup_' + Math.random().toString(36).substring(2, 10),
                             clean: true,
                             connectTimeout: 4000,
-                            reconnectPeriod: 3000
+                            reconnectPeriod: 2500
                         });
                         client.on('connect', () => {
-                            client.subscribe(topic, { qos: 0 }, () => {
+                            client.subscribe([roomTopic, audioTopic], { qos: 0 }, () => {
                                 if (isInRoom && myId) {
                                     publishToDiscoveryBus(buildPresencePacket('presence'));
                                 }
@@ -1626,160 +1645,423 @@
         }
 
         // =========================================================================
-        // ДЕТЕРМИНИРОВАННЫЙ ЗВОНОК И ЗАЩИТА ОТ ОБРЫВОВ ЧЕРЕЗ 1-2 ЧАСА
+        // УРОВЕНЬ 1: НАТИВНЫЙ WEBRTC ПРЯМО ЧЕРЕЗ РАБОЧУЮ ШИНУ (БЕЗ 0.PEERJS.COM)
         // =========================================================================
-        function isCallAliveOrConnecting(remoteId) {
-            const call = activeCalls[remoteId];
-            if (!call) return false;
+        function isDirectWebRtcConnected(remoteId) {
+            const pc = rtcPeers[remoteId];
+            if (!pc) return false;
+            const ice = pc.iceConnectionState;
+            const conn = pc.connectionState;
+            return Boolean(
+                (ice === 'connected' || ice === 'completed' || conn === 'connected') &&
+                remoteStreams[remoteId] &&
+                webrtcInboundActive[remoteId]
+            );
+        }
 
-            const pc = call.peerConnection;
-            const ice = pc ? pc.iceConnectionState : '';
-            const conn = pc ? pc.connectionState : '';
+        function isRtcAliveOrConnecting(remoteId) {
+            const pc = rtcPeers[remoteId];
+            if (!pc) return false;
+
+            const ice = pc.iceConnectionState;
+            const conn = pc.connectionState;
             const now = Date.now();
-            const age = now - (callStartedAt[remoteId] || now);
+            const age = now - (rtcOfferCreatedAt[remoteId] || now);
 
             if (ice === 'failed' || ice === 'closed' || conn === 'failed' || conn === 'closed') {
                 return false;
             }
 
             if (ice === 'disconnected' || conn === 'disconnected') {
-                if (!callDisconnectedSince[remoteId]) {
-                    callDisconnectedSince[remoteId] = now;
+                if (!rtcDisconnectedSince[remoteId]) {
+                    rtcDisconnectedSince[remoteId] = now;
                 }
-                // Даем 8 секунд на автоматическое восстановление UDP-потока при кратковременном скачке пинга
-                if (now - callDisconnectedSince[remoteId] > 8000) {
+                if (now - rtcDisconnectedSince[remoteId] > 7000) {
                     return false;
                 }
                 return true;
             } else {
-                delete callDisconnectedSince[remoteId];
+                delete rtcDisconnectedSince[remoteId];
             }
 
-            if (remoteStreams[remoteId]) {
+            if ((ice === 'connected' || ice === 'completed' || conn === 'connected') && remoteStreams[remoteId]) {
                 return true;
             }
 
-            // Пока идет установка звонка (до 15 секунд) — ни в коем случае не сбрасываем его!
-            if (age < CALL_SETUP_TIMEOUT_MS) {
+            if (age < RTC_OFFER_TIMEOUT_MS) {
                 return true;
             }
 
             return false;
         }
 
-        // ДЕТЕРМИНИРОВАННЫЙ ЗВОНОК (Звонит СТРОГО один: shouldInitiateCall(myId, remoteId))
+        function createOrResetRtcPeer(remoteId) {
+            cleanupCall(remoteId);
+
+            const pc = new RTCPeerConnection(RTC_CONFIG);
+            rtcPeers[remoteId] = pc;
+            rtcOfferCreatedAt[remoteId] = Date.now();
+            pendingIceCandidates[remoteId] = [];
+
+            if (localStream) {
+                const actualMic = micEnabled && !adminMuted;
+                localStream.getAudioTracks().forEach(track => {
+                    track.enabled = actualMic;
+                    try {
+                        pc.addTrack(track, localStream);
+                    } catch (e) {}
+                });
+            }
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate && isInRoom) {
+                    sendToPeer(remoteId, {
+                        type: 'webrtc_ice',
+                        id: myId,
+                        target: remoteId,
+                        candidate: event.candidate
+                    });
+                }
+            };
+
+            pc.ontrack = (event) => {
+                const stream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream([event.track]);
+                if (stream && stream.getAudioTracks().length > 0) {
+                    remoteStreams[remoteId] = stream;
+                    attachRemoteAudio(remoteId, stream);
+                    if (peerHealth[remoteId]) peerHealth[remoteId].lastSeen = Date.now();
+                    updateNetQualityDOM(remoteId, 'good', peerHealth[remoteId]?.rtt || 28);
+                }
+            };
+
+            const onStateChange = () => {
+                if (rtcPeers[remoteId] !== pc) return;
+                const ice = pc.iceConnectionState;
+                const conn = pc.connectionState;
+
+                if (ice === 'connected' || ice === 'completed' || conn === 'connected') {
+                    delete rtcDisconnectedSince[remoteId];
+                    if (peerHealth[remoteId]) peerHealth[remoteId].lastSeen = Date.now();
+                    updateNetQualityDOM(remoteId, 'good', peerHealth[remoteId]?.rtt || 28);
+                } else if (ice === 'failed' || conn === 'failed') {
+                    webrtcInboundActive[remoteId] = false;
+                    cleanupCall(remoteId);
+                    setTimeout(() => evaluateVoiceCall(remoteId), 600);
+                } else if (ice === 'disconnected' || conn === 'disconnected') {
+                    webrtcInboundActive[remoteId] = false;
+                    if (!rtcDisconnectedSince[remoteId]) {
+                        rtcDisconnectedSince[remoteId] = Date.now();
+                    }
+                }
+            };
+
+            pc.addEventListener('iceconnectionstatechange', onStateChange);
+            pc.addEventListener('connectionstatechange', onStateChange);
+
+            return pc;
+        }
+
+        async function flushPendingIceCandidates(remoteId) {
+            const pc = rtcPeers[remoteId];
+            if (!pc || !pc.remoteDescription || !pc.remoteDescription.type) return;
+            const queue = pendingIceCandidates[remoteId] || [];
+            pendingIceCandidates[remoteId] = [];
+            for (let i = 0; i < queue.length; i++) {
+                try {
+                    await pc.addIceCandidate(new RTCIceCandidate(queue[i]));
+                } catch (e) {}
+            }
+        }
+
+        async function initiateWebRtcOffer(remoteId) {
+            if (!isInRoom || !localStream || !remoteId || remoteId === myId) return;
+            try {
+                const pc = createOrResetRtcPeer(remoteId);
+                const offer = await pc.createOffer({
+                    offerToReceiveAudio: true,
+                    offerToReceiveVideo: false
+                });
+                if (rtcPeers[remoteId] !== pc) return;
+                await pc.setLocalDescription(offer);
+                sendToPeer(remoteId, {
+                    type: 'webrtc_offer',
+                    id: myId,
+                    target: remoteId,
+                    sdp: pc.localDescription
+                });
+            } catch (e) {
+                console.warn('WebRTC Offer error:', e);
+            }
+        }
+
+        async function handleWebRtcOffer(remoteId, sdp) {
+            if (!isInRoom || !localStream || !remoteId || !sdp) return;
+            try {
+                const pc = createOrResetRtcPeer(remoteId);
+                await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+                await flushPendingIceCandidates(remoteId);
+                const answer = await pc.createAnswer();
+                if (rtcPeers[remoteId] !== pc) return;
+                await pc.setLocalDescription(answer);
+                sendToPeer(remoteId, {
+                    type: 'webrtc_answer',
+                    id: myId,
+                    target: remoteId,
+                    sdp: pc.localDescription
+                });
+            } catch (e) {
+                console.warn('WebRTC Answer error:', e);
+            }
+        }
+
+        async function handleWebRtcAnswer(remoteId, sdp) {
+            const pc = rtcPeers[remoteId];
+            if (!pc || !sdp) return;
+            try {
+                if (pc.signalingState === 'have-local-offer') {
+                    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+                    await flushPendingIceCandidates(remoteId);
+                }
+            } catch (e) {
+                console.warn('WebRTC setRemoteDescription answer error:', e);
+            }
+        }
+
+        async function handleWebRtcIce(remoteId, candidate) {
+            if (!candidate || !remoteId) return;
+            const pc = rtcPeers[remoteId];
+            if (!pc) return;
+            try {
+                if (pc.remoteDescription && pc.remoteDescription.type) {
+                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                } else {
+                    if (!pendingIceCandidates[remoteId]) pendingIceCandidates[remoteId] = [];
+                    pendingIceCandidates[remoteId].push(candidate);
+                }
+            } catch (e) {}
+        }
+
         function evaluateVoiceCall(remoteId) {
-            if (!isInRoom || !isMyPeerOpen || !peer || peer.destroyed || !localStream || !remoteId || remoteId === myId) return;
-            if (remotePeerReady[remoteId] !== true) return;
+            if (!isInRoom || !localStream || !remoteId || remoteId === myId) return;
+            if (isRtcAliveOrConnecting(remoteId)) return;
 
-            if (isCallAliveOrConnecting(remoteId)) return;
-
-            // Если старый объект звонка завис или упал в failed — очищаем перед новым вызовом
-            if (activeCalls[remoteId]) {
+            if (rtcPeers[remoteId]) {
                 cleanupCall(remoteId);
             }
 
             if (shouldInitiateCall(myId, remoteId)) {
-                callVoicePeer(remoteId);
+                initiateWebRtcOffer(remoteId);
             } else {
-                // Ведомый узел НИКОГДА не звонит сам (чтобы исключить встречную коллизию и сброс звонка!).
-                // Если поток еще не пришел спустя 5 секунд после готовности обоих узлов — просим ведущего позвонить нам.
-                const discoveredAt = peerHealth[remoteId]?.discoveredAt || Date.now();
                 const now = Date.now();
-                if (now - discoveredAt > 5000 && now - (lastReconnectReqTs[remoteId] || 0) > 6000) {
+                if (now - (lastReconnectReqTs[remoteId] || 0) > 4500) {
                     lastReconnectReqTs[remoteId] = now;
-                    sendToPeer(remoteId, { type: 'request_voice_reconnect', id: myId, peerReady: isMyPeerOpen });
+                    sendToPeer(remoteId, { type: 'request_voice_reconnect', id: myId, target: remoteId });
                 }
             }
         }
 
-        function callVoicePeer(remoteId) {
-            if (!isMyPeerOpen || !peer || peer.destroyed || !localStream || !remoteId || remoteId === myId) return;
-            if (isCallAliveOrConnecting(remoteId)) return;
+        // =========================================================================
+        // УРОВЕНЬ 2: АВТОМАТИЧЕСКИЙ WSS LIVE AUDIO RELAY (G.711 μ-LAW 12KHZ)
+        // Гарантирует 100% слышимость даже если провайдер/CGNAT блокирует P2P UDP!
+        // =========================================================================
+        const RELAY_SAMPLE_RATE = 12000;
 
-            if (activeCalls[remoteId]) {
-                cleanupCall(remoteId);
+        function linearToUlawByte(sample) {
+            let s = Math.max(-1, Math.min(1, sample));
+            s = s * 32767;
+            let sign = (s < 0) ? 0x80 : 0;
+            if (s < 0) s = -s;
+            if (s > 32635) s = 32635;
+            s += 132;
+            let exponent = 7;
+            for (let expMask = 0x4000; (s & expMask) === 0 && exponent > 0; exponent--, expMask >>= 1) {}
+            const mantissa = (s >> (exponent + 3)) & 0x0f;
+            const ulaw = ~(sign | (exponent << 4) | mantissa) & 0xff;
+            return ulaw;
+        }
+
+        function ulawByteToLinear(ulawByte) {
+            const u = (~ulawByte) & 0xff;
+            const sign = (u & 0x80);
+            const exponent = (u >> 4) & 0x07;
+            const mantissa = u & 0x0f;
+            let sample = (((mantissa << 3) + 0x84) << exponent) - 0x84;
+            if (sign !== 0) sample = -sample;
+            return sample / 32768.0;
+        }
+
+        function doesAnyPeerNeedAudioRelay() {
+            const peerIds = Object.keys(userProfiles);
+            for (let i = 0; i < peerIds.length; i++) {
+                const pid = peerIds[i];
+                if (pid && pid !== myId) {
+                    // Если хотя бы с одним участником прямой P2P WebRTC еще не активен — включаем релей!
+                    if (!isDirectWebRtcConnected(pid)) {
+                        return true;
+                    }
+                }
             }
+            return false;
+        }
+
+        function startWssAudioRelayTransmitter() {
+            stopWssAudioRelayTransmitter();
+            if (!localStream) return;
 
             try {
-                const actualMic = micEnabled && !adminMuted;
-                localStream.getAudioTracks().forEach(t => { t.enabled = actualMic; });
+                if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
 
-                const call = peer.call(remoteId, localStream);
-                if (call) {
-                    bindMediaCallHandlers(call, remoteId);
-                }
-            } catch(e) {
-                console.error('Failed to initiate voice call:', e);
-            }
-        }
+                relaySourceNode = audioCtx.createMediaStreamSource(localStream);
+                relayProcessorNode = audioCtx.createScriptProcessor(4096, 1, 1);
+                relayZeroGainNode = audioCtx.createGain();
+                relayZeroGainNode.gain.value = 0;
 
-        function bindMediaCallHandlers(call, remoteId) {
-            if (!call || !remoteId) return;
-            activeCalls[remoteId] = call;
-            callStartedAt[remoteId] = Date.now();
-            delete callDisconnectedSince[remoteId];
+                relaySourceNode.connect(relayProcessorNode);
+                relayProcessorNode.connect(relayZeroGainNode);
+                relayZeroGainNode.connect(audioCtx.destination);
 
-            const attachPcMonitor = (pc) => {
-                if (!pc || pc._vupMonitored) return;
-                pc._vupMonitored = true;
+                relayProcessorNode.onaudioprocess = (e) => {
+                    if (!isInRoom || !micEnabled || adminMuted) return;
+                    if (!doesAnyPeerNeedAudioRelay()) return;
 
-                const onIceChange = () => {
-                    if (activeCalls[remoteId] !== call) return;
-                    const ice = pc.iceConnectionState;
-                    const conn = pc.connectionState;
+                    const input = e.inputBuffer.getChannelData(0);
+                    const inRate = e.inputBuffer.sampleRate || audioCtx.sampleRate || 48000;
 
-                    if (ice === 'connected' || ice === 'completed' || conn === 'connected') {
-                        delete callDisconnectedSince[remoteId];
-                        if (peerHealth[remoteId]) peerHealth[remoteId].lastSeen = Date.now();
-                        updateNetQualityDOM(remoteId, 'good', peerHealth[remoteId]?.rtt || 30);
-                    } else if (ice === 'failed' || conn === 'failed') {
-                        updateNetQualityDOM(remoteId, 'bad', 999);
-                        cleanupCall(remoteId);
-                        setTimeout(() => evaluateVoiceCall(remoteId), 500);
-                    } else if (ice === 'disconnected' || conn === 'disconnected') {
-                        if (!callDisconnectedSince[remoteId]) {
-                            callDisconnectedSince[remoteId] = Date.now();
-                        }
-                        updateNetQualityDOM(remoteId, 'bad', 420);
+                    // Проверяем уровень громкости голоса (VAD)
+                    let sumSq = 0;
+                    for (let i = 0; i < input.length; i += 4) {
+                        sumSq += input[i] * input[i];
                     }
+                    const rms = Math.sqrt(sumSq / (input.length / 4));
+                    const now = Date.now();
+
+                    if (rms > 0.008) {
+                        lastVoiceActiveTs = now;
+                    }
+                    // Отправляем пакеты только во время речи + 350 мс хвост после фразы
+                    if (now - lastVoiceActiveTs > 350) return;
+
+                    const ratio = inRate / RELAY_SAMPLE_RATE;
+                    const outLength = Math.floor(input.length / ratio);
+                    if (outLength <= 0) return;
+
+                    const bytes = new Uint8Array(outLength);
+                    for (let i = 0; i < outLength; i++) {
+                        const idx = Math.min(input.length - 1, Math.floor(i * ratio));
+                        bytes[i] = linearToUlawByte(input[idx]);
+                    }
+
+                    let binary = '';
+                    for (let i = 0; i < bytes.length; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                    }
+                    const b64 = btoa(binary);
+
+                    relaySeq = (relaySeq + 1) % 1000000;
+                    publishAudioRelayPacket({
+                        type: 'audio_relay',
+                        seq: relaySeq,
+                        sr: RELAY_SAMPLE_RATE,
+                        d: b64
+                    });
                 };
-
-                pc.addEventListener('iceconnectionstatechange', onIceChange);
-                pc.addEventListener('connectionstatechange', onIceChange);
-            };
-
-            if (call.peerConnection) {
-                attachPcMonitor(call.peerConnection);
-            } else {
-                setTimeout(() => {
-                    if (call.peerConnection) attachPcMonitor(call.peerConnection);
-                }, 50);
+            } catch (err) {
+                console.warn('Relay transmitter init warning:', err);
             }
-
-            call.on('stream', (remoteStream) => {
-                if (!remoteStream) return;
-                remoteStreams[remoteId] = remoteStream;
-                delete callDisconnectedSince[remoteId];
-                attachRemoteAudio(remoteId, remoteStream);
-                if (peerHealth[remoteId]) peerHealth[remoteId].lastSeen = Date.now();
-                updateNetQualityDOM(remoteId, 'good', peerHealth[remoteId]?.rtt || 30);
-            });
-
-            call.on('close', () => {
-                if (activeCalls[remoteId] === call) {
-                    cleanupCall(remoteId);
-                }
-            });
-
-            call.on('error', () => {
-                if (activeCalls[remoteId] === call) {
-                    cleanupCall(remoteId);
-                }
-            });
         }
 
-        // АВТОМАТИЧЕСКОЕ ВОССТАНОВЛЕНИЕ МИКРОФОНА, ЕСЛИ ДРАЙВЕР ИЛИ ГАРНИТУРА ОТВАЛИЛИСЬ СПУСТЯ 1-2 ЧАСА ИГРЫ
+        function stopWssAudioRelayTransmitter() {
+            if (relayProcessorNode) {
+                try {
+                    relayProcessorNode.onaudioprocess = null;
+                    relayProcessorNode.disconnect();
+                } catch (e) {}
+                relayProcessorNode = null;
+            }
+            if (relaySourceNode) {
+                try { relaySourceNode.disconnect(); } catch (e) {}
+                relaySourceNode = null;
+            }
+            if (relayZeroGainNode) {
+                try { relayZeroGainNode.disconnect(); } catch (e) {}
+                relayZeroGainNode = null;
+            }
+        }
+
+        function handleAudioRelayPacket(remoteId, packet) {
+            if (!isInRoom || !remoteId || remoteId === myId || !packet || !packet.d) return;
+
+            const dedupKey = `${remoteId}_${packet.seq}`;
+            if (seenRelaySeqs.has(dedupKey)) return;
+            seenRelaySeqs.add(dedupKey);
+            if (seenRelaySeqs.size > 600) {
+                const firstKey = seenRelaySeqs.values().next().value;
+                seenRelaySeqs.delete(firstKey);
+            }
+
+            if (peerHealth[remoteId]) {
+                peerHealth[remoteId].lastSeen = Date.now();
+            }
+
+            // Зажигаем зеленый круг говорящего друга на его карточке!
+            const card = document.getElementById(`card-${remoteId}`);
+            if (card) {
+                const avatar = card.querySelector('.avatar');
+                if (avatar) avatar.classList.add('speaking');
+                clearTimeout(relaySpeakTimers[remoteId]);
+                relaySpeakTimers[remoteId] = setTimeout(() => {
+                    const c = document.getElementById(`card-${remoteId}`);
+                    if (c) c.querySelector('.avatar')?.classList.remove('speaking');
+                }, 320);
+            }
+
+            // Если прямой P2P WebRTC поток от этого друга уже активно идет — не дублируем звук
+            if (isDirectWebRtcConnected(remoteId)) return;
+
+            if (!soundEnabled) return;
+            const locSet = localPeerSettings[remoteId] || { volume: 1, muted: false };
+            if (locSet.muted || locSet.volume <= 0) return;
+
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume().catch(() => {});
+                }
+
+                const binary = atob(packet.d);
+                const len = binary.length;
+                if (len <= 0) return;
+
+                const sr = packet.sr || RELAY_SAMPLE_RATE;
+                const audioBuffer = audioCtx.createBuffer(1, len, sr);
+                const channelData = audioBuffer.getChannelData(0);
+
+                for (let i = 0; i < len; i++) {
+                    channelData[i] = ulawByteToLinear(binary.charCodeAt(i));
+                }
+
+                let gainNode = relayPeerGainNodes[remoteId];
+                if (!gainNode) {
+                    gainNode = audioCtx.createGain();
+                    gainNode.connect(audioCtx.destination);
+                    relayPeerGainNodes[remoteId] = gainNode;
+                }
+                gainNode.gain.value = locSet.muted ? 0 : locSet.volume;
+
+                const src = audioCtx.createBufferSource();
+                src.buffer = audioBuffer;
+                src.connect(gainNode);
+
+                const now = audioCtx.currentTime;
+                let startAt = relayNextPlayTime[remoteId] || now;
+                if (startAt < now || startAt > now + 0.45) {
+                    startAt = now + 0.03;
+                }
+                src.start(startAt);
+                relayNextPlayTime[remoteId] = startAt + audioBuffer.duration;
+            } catch (e) {}
+        }
+
+        // АВТОМАТИЧЕСКОЕ ВОССТАНОВЛЕНИЕ МИКРОФОНА, ЕСЛИ ГАРНИТУРА ОТВАЛИЛАСЬ СПУСТЯ 1-2 ЧАСА ИГРЫ
         async function ensureLocalMicTrackAlive() {
             if (!isInRoom || isReplacingMicTrack) return;
             const tracks = localStream ? localStream.getAudioTracks() : [];
@@ -1796,11 +2078,11 @@
 
                     localStream = newStream;
                     startLocalSpeakingDetector();
+                    startWssAudioRelayTransmitter();
 
-                    // Бесшовно подменяем аудио-трек во всех активных WebRTC соединениях без разрыва связи
-                    Object.values(activeCalls).forEach(call => {
+                    Object.values(rtcPeers).forEach(pc => {
                         try {
-                            const senders = call?.peerConnection?.getSenders ? call.peerConnection.getSenders() : [];
+                            const senders = pc && pc.getSenders ? pc.getSenders() : [];
                             senders.forEach(sender => {
                                 if (sender && (!sender.track || sender.track.kind === 'audio')) {
                                     sender.replaceTrack(newTrack).catch(() => {});
@@ -1833,62 +2115,36 @@
                 }
             });
 
-            // 3. Контролируем соединение с сигнальным сервером PeerJS (защита от отвала через 1-2 часа)
-            if (peer && !peer.destroyed) {
-                if (peer.disconnected) {
-                    isMyPeerOpen = false;
-                    if (!peerDisconnectedSince) peerDisconnectedSince = Date.now();
-                    updateNetQualityDOM(myId, 'bad', 999);
-                    try { peer.reconnect(); } catch (e) {}
-
-                    // Если сигнальный сервер сбросил сессию окончательно (> 12 сек) — пересоздаем Peer с тем же ID
-                    if (Date.now() - peerDisconnectedSince > 12000) {
-                        peerDisconnectedSince = Date.now();
-                        recreatePeerInstance();
-                    }
-                } else if (peer.open) {
-                    isMyPeerOpen = true;
-                    peerDisconnectedSince = 0;
-                    updateNetQualityDOM(myId, 'good', 0);
-                }
-            }
-
-            // 4. Рассылаем присутствие по всем каналам Discovery Bus
+            // 3. Рассылаем присутствие по всем каналам Discovery Bus
             publishToDiscoveryBus(buildPresencePacket('presence'));
+            updateNetQualityDOM(myId, 'good', 0);
 
             const now = Date.now();
 
-            // 5. Проверяем связь и пинг со всеми участниками комнаты
+            // 4. Проверяем связь, статистику RTP-пакетов и пинг со всеми участниками комнаты
             Object.keys(userProfiles).forEach(pid => {
                 if (!pid || pid === myId) return;
                 if (!peerHealth[pid]) {
-                    peerHealth[pid] = { lastSeen: now, rtt: 35, quality: 'good', reconnecting: false, discoveredAt: now };
+                    peerHealth[pid] = { lastSeen: now, rtt: 35, quality: 'good', discoveredAt: now };
                 }
 
-                if (isMyPeerOpen && remotePeerReady[pid] === true) {
-                    const conn = activeConnections[pid];
-                    if (!conn || !conn.open) {
-                        connectDataToPeer(pid);
-                    } else {
-                        try {
-                            conn.send({
-                                type: 'ping',
-                                id: myId,
-                                peerReady: isMyPeerOpen,
-                                ts: now,
-                                joinTimestamp: myJoinTimestamp,
-                                creatorDeviceId: roomCreatorDeviceId
-                            });
-                        } catch (e) {}
-                    }
+                // Отправляем пинг через рабочую шину
+                sendToPeer(pid, {
+                    type: 'ping',
+                    id: myId,
+                    ts: now,
+                    joinTimestamp: myJoinTimestamp,
+                    creatorDeviceId: roomCreatorDeviceId
+                });
 
-                    evaluateVoiceCall(pid);
-                }
+                // Контролируем прямое WebRTC соединение
+                evaluateVoiceCall(pid);
 
-                const call = activeCalls[pid];
-                if (call && call.peerConnection) {
+                const pc = rtcPeers[pid];
+                if (pc) {
                     try {
-                        call.peerConnection.getStats().then(stats => {
+                        pc.getStats().then(stats => {
+                            let currentBytes = 0;
                             stats.forEach(report => {
                                 if (report.type === 'candidate-pair' && report.state === 'succeeded' && typeof report.currentRoundTripTime === 'number') {
                                     const statsRtt = Math.round(report.currentRoundTripTime * 1000);
@@ -1896,7 +2152,18 @@
                                         applyRttMeasurement(pid, statsRtt);
                                     }
                                 }
+                                if (report.type === 'inbound-rtp' && (report.kind === 'audio' || report.mediaType === 'audio')) {
+                                    if (typeof report.bytesReceived === 'number') {
+                                        currentBytes += report.bytesReceived;
+                                    }
+                                }
                             });
+                            if (currentBytes > 0 && currentBytes > (lastInboundBytes[pid] || 0)) {
+                                webrtcInboundActive[pid] = true;
+                                lastInboundBytes[pid] = currentBytes;
+                            } else if (currentBytes > 1024 && (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed')) {
+                                webrtcInboundActive[pid] = true;
+                            }
                         }).catch(() => {});
                     } catch (e) {}
                 }
@@ -1912,28 +2179,6 @@
             recalculateRoomAdmin();
         }
 
-        function recreatePeerInstance() {
-            if (!isInRoom || !myId) return;
-            try {
-                if (peer && !peer.destroyed) peer.destroy();
-            } catch (e) {}
-
-            isMyPeerOpen = false;
-            peer = new Peer(myId, PEER_CONFIG);
-            bindPeerEvents();
-            peer.on('open', () => {
-                isMyPeerOpen = true;
-                peerDisconnectedSince = 0;
-                publishToDiscoveryBus(buildPresencePacket('presence'));
-                Object.keys(userProfiles).forEach(pid => {
-                    if (pid && pid !== myId && remotePeerReady[pid] === true) {
-                        connectDataToPeer(pid);
-                        evaluateVoiceCall(pid);
-                    }
-                });
-            });
-        }
-
         function startPresenceLoop() {
             if (presenceTimer) clearInterval(presenceTimer);
             runPresenceAndHeartbeatCycle();
@@ -1942,7 +2187,7 @@
 
         function applyRttMeasurement(peerId, rttMs) {
             if (!peerHealth[peerId]) {
-                peerHealth[peerId] = { lastSeen: Date.now(), rtt: rttMs, quality: 'good', reconnecting: false, discoveredAt: Date.now() };
+                peerHealth[peerId] = { lastSeen: Date.now(), rtt: rttMs, quality: 'good', discoveredAt: Date.now() };
             }
             peerHealth[peerId].rtt = rttMs;
             let q = 'good';
@@ -1952,21 +2197,15 @@
         }
 
         // ОБРАБОТЧИК СИГНАЛОВ МЕЖДУ УЧАСТНИКАМИ
-        function handleIncomingSignal(remoteId, message, fromDirectDataConn = false) {
+        function handleIncomingSignal(remoteId, message) {
             if (!message || typeof message !== 'object') return;
             const peerId = message.id || message.senderId || remoteId;
             if (!peerId || peerId === myId) return;
 
             if (!peerHealth[peerId]) {
-                peerHealth[peerId] = { lastSeen: Date.now(), rtt: 35, quality: 'good', reconnecting: false, discoveredAt: Date.now() };
+                peerHealth[peerId] = { lastSeen: Date.now(), rtt: 35, quality: 'good', discoveredAt: Date.now() };
             } else {
                 peerHealth[peerId].lastSeen = Date.now();
-            }
-
-            if (fromDirectDataConn) {
-                remotePeerReady[peerId] = true;
-            } else if (typeof message.peerReady === 'boolean') {
-                remotePeerReady[peerId] = message.peerReady;
             }
 
             if (typeof message.joinTimestamp === 'number' && message.joinTimestamp > 0) {
@@ -1976,11 +2215,24 @@
                 syncCreatorDeviceId(message.creatorDeviceId, peerId, message.joinTimestamp);
             }
 
+            // Сигналы нативного WebRTC через рабочую шину
+            if (message.type === 'webrtc_offer' && message.target === myId) {
+                handleWebRtcOffer(peerId, message.sdp);
+                return;
+            }
+            if (message.type === 'webrtc_answer' && message.target === myId) {
+                handleWebRtcAnswer(peerId, message.sdp);
+                return;
+            }
+            if (message.type === 'webrtc_ice' && message.target === myId) {
+                handleWebRtcIce(peerId, message.candidate);
+                return;
+            }
+
             if (message.type === 'ping') {
                 sendToPeer(peerId, {
                     type: 'pong',
                     id: myId,
-                    peerReady: isMyPeerOpen,
                     ts: message.ts,
                     joinTimestamp: myJoinTimestamp,
                     creatorDeviceId: roomCreatorDeviceId
@@ -1997,11 +2249,9 @@
             }
 
             if (message.type === 'request_voice_reconnect') {
-                remotePeerReady[peerId] = true;
                 if (shouldInitiateCall(myId, peerId)) {
-                    if (!isCallAliveOrConnecting(peerId)) {
-                        cleanupCall(peerId);
-                        callVoicePeer(peerId);
+                    if (!isRtcAliveOrConnecting(peerId)) {
+                        initiateWebRtcOffer(peerId);
                     }
                 }
                 return;
@@ -2013,7 +2263,6 @@
                     if (!bannedDevices[message.deviceId]) {
                         const acceptMsg = { type: 'appeal_accepted', target: peerId, deviceId: message.deviceId };
                         sendToPeer(peerId, acceptMsg);
-                        publishToDiscoveryBus(acceptMsg);
                     } else {
                         pendingAppealPeers[message.deviceId] = peerId;
                     }
@@ -2029,7 +2278,6 @@
                     pendingAppealPeers[peerProfile.deviceId] = peerId;
                     const rejectMsg = { type: 'banned_reject', target: peerId, deviceId: peerProfile.deviceId, senderName: myProfile.nick };
                     sendToPeer(peerId, rejectMsg);
-                    publishToDiscoveryBus(rejectMsg);
                     return;
                 }
             }
@@ -2042,7 +2290,6 @@
                 if (!bannedDevices[message.deviceId]) {
                     const acceptMsg = { type: 'appeal_accepted', target: peerId, deviceId: message.deviceId };
                     sendToPeer(peerId, acceptMsg);
-                    publishToDiscoveryBus(acceptMsg);
                     return;
                 }
 
@@ -2132,7 +2379,6 @@
                     sendToPeer(peerId, {
                         type: 'handshake_reply',
                         id: myId,
-                        peerReady: isMyPeerOpen,
                         profile: myProfile,
                         state: userStates[myId] || { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted },
                         joinTimestamp: myJoinTimestamp,
@@ -2153,140 +2399,18 @@
 
         const seenChatIds = new Set();
 
-        function bindPeerEvents() {
-            peer.on('connection', (conn) => {
-                setupDataConnection(conn);
-            });
-
-            peer.on('call', (call) => {
-                if (!localStream || !call || !call.peer) return;
-                const remoteId = call.peer;
-                remotePeerReady[remoteId] = true;
-
-                const actualMic = micEnabled && !adminMuted;
-                localStream.getAudioTracks().forEach(t => { t.enabled = actualMic; });
-
-                call.answer(localStream);
-                bindMediaCallHandlers(call, remoteId);
-            });
-
-            peer.on('disconnected', () => {
-                isMyPeerOpen = false;
-                if (!peerDisconnectedSince) peerDisconnectedSince = Date.now();
-                updateNetQualityDOM(myId, 'bad', 999);
-                setTimeout(() => {
-                    if (peer && peer.disconnected && !peer.destroyed) {
-                        try { peer.reconnect(); } catch (e) {}
-                    }
-                }, 500);
-            });
-
-            peer.on('error', (err) => {
-                if (err && err.type === 'peer-unavailable') {
-                    // Если целевой пир еще не успел зарегистрироваться на 0.peerjs.com — сбрасываем пустую попытку звонка, чтобы повторить через 2.5 сек
-                    const msg = String(err.message || '');
-                    const match = msg.match(/peer\s+([^\s]+)/i);
-                    const unavailableId = match && match[1] ? match[1].trim() : '';
-                    if (unavailableId) {
-                        if (activeCalls[unavailableId] && !remoteStreams[unavailableId]) {
-                            cleanupCall(unavailableId);
-                        }
-                        if (activeConnections[unavailableId] && !activeConnections[unavailableId].open) {
-                            delete activeConnections[unavailableId];
-                            delete connectionAttemptTs[unavailableId];
-                        }
-                    }
-                    return;
-                }
-                console.warn('Peer notice:', err ? err.type : '');
-            });
-        }
-
-        // ИНИЦИАЦИЯ DATACONNECTION ТОЛЬКО ОДНОЙ СТОРОНОЙ (myId > targetId) ДЛЯ ИСКЛЮЧЕНИЯ ДВОЙНЫХ СОЕДИНЕНИЙ
-        function connectDataToPeer(targetId) {
-            if (!isMyPeerOpen || !peer || peer.destroyed || !targetId || targetId === myId) return;
-            if (remotePeerReady[targetId] !== true) return;
-
-            const existing = activeConnections[targetId];
-            if (existing && existing.open) return;
-
-            if (!shouldInitiateCall(myId, targetId)) return;
-
-            const now = Date.now();
-            if (now - (connectionAttemptTs[targetId] || 0) < 4000) return;
-
-            if (existing && !existing.open) {
-                try { existing.close(); } catch (e) {}
-                delete activeConnections[targetId];
-            }
-
-            try {
-                connectionAttemptTs[targetId] = now;
-                const conn = peer.connect(targetId, { reliable: true });
-                setupDataConnection(conn);
-            } catch (e) {}
-        }
-
-        function setupDataConnection(conn) {
-            if (!conn || !conn.peer) return;
-            const remoteId = conn.peer;
-
-            if (!activeConnections[remoteId] || !activeConnections[remoteId].open) {
-                activeConnections[remoteId] = conn;
-            }
-
-            conn.on('open', () => {
-                activeConnections[remoteId] = conn;
-                remotePeerReady[remoteId] = true;
-                connectionAttemptTs[remoteId] = Date.now();
-                if (!peerHealth[remoteId]) {
-                    peerHealth[remoteId] = { lastSeen: Date.now(), rtt: 35, quality: 'good', reconnecting: false, discoveredAt: Date.now() };
-                } else {
-                    peerHealth[remoteId].lastSeen = Date.now();
-                }
-
-                try {
-                    conn.send({
-                        type: 'handshake',
-                        id: myId,
-                        peerReady: isMyPeerOpen,
-                        profile: myProfile,
-                        state: userStates[myId] || { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted },
-                        joinTimestamp: myJoinTimestamp,
-                        creatorDeviceId: roomCreatorDeviceId
-                    });
-                } catch (e) {}
-
-                evaluateVoiceCall(remoteId);
-            });
-
-            conn.on('data', (data) => {
-                handleIncomingSignal(conn.peer, data, true);
-            });
-
-            conn.on('close', () => {
-                if (activeConnections[remoteId] === conn) {
-                    delete activeConnections[remoteId];
-                    delete connectionAttemptTs[remoteId];
-                }
-            });
-
-            conn.on('error', () => {
-                if (activeConnections[remoteId] === conn) {
-                    delete activeConnections[remoteId];
-                    delete connectionAttemptTs[remoteId];
-                }
-            });
-        }
-
         function cleanupCall(peerId) {
-            if (activeCalls[peerId]) {
-                try { activeCalls[peerId].close(); } catch(e) {}
-                delete activeCalls[peerId];
+            if (rtcPeers[peerId]) {
+                try { rtcPeers[peerId].close(); } catch(e) {}
+                delete rtcPeers[peerId];
             }
-            delete callStartedAt[peerId];
-            delete callDisconnectedSince[peerId];
+            delete rtcOfferCreatedAt[peerId];
+            delete rtcDisconnectedSince[peerId];
+            delete pendingIceCandidates[peerId];
             delete remoteStreams[peerId];
+            delete webrtcInboundActive[peerId];
+            delete lastInboundBytes[peerId];
+
             const a = document.getElementById(`audio-${peerId}`);
             if (a) {
                 try { a.srcObject = null; } catch (e) {}
@@ -2299,20 +2423,23 @@
         }
 
         function cleanupPeer(peerId) {
-            delete activeConnections[peerId];
-            delete connectionAttemptTs[peerId];
-            delete remotePeerReady[peerId];
             delete peerHealth[peerId];
             delete peerJoinTimestamps[peerId];
             delete lastReconnectReqTs[peerId];
             cleanupCall(peerId);
+            if (relayPeerGainNodes[peerId]) {
+                try { relayPeerGainNodes[peerId].disconnect(); } catch (e) {}
+                delete relayPeerGainNodes[peerId];
+            }
+            delete relayNextPlayTime[peerId];
+            clearTimeout(relaySpeakTimers[peerId]);
+            delete relaySpeakTimers[peerId];
             delete userProfiles[peerId];
             delete userStates[peerId];
             removeUserCard(peerId);
             recalculateRoomAdmin();
         }
 
-        // ТОЧНОЕ ПОДКЛЮЧЕНИЕ АУДИОПОТОКА ИЗ РАБОЧЕЙ ВЕРСИИ
         function attachRemoteAudio(peerId, remoteStream) {
             if (!remoteStream) return;
 
@@ -2360,8 +2487,8 @@
                     for (let i = 0; i < data.length; i++) sum += data[i];
                     let avg = sum / data.length;
                     const avatar = card.querySelector('.avatar');
-                    if (avatar) {
-                        if (avg > 15) avatar.classList.add('speaking');
+                    if (avatar && isDirectWebRtcConnected(peerId)) {
+                        if (avg > 14) avatar.classList.add('speaking');
                         else avatar.classList.remove('speaking');
                     }
                     requestAnimationFrame(checkVoice);
@@ -2409,7 +2536,7 @@
                     for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
                     let avg = sum / dataArray.length;
 
-                    if (avg > 15) {
+                    if (avg > 14) {
                         if (!localSpeaking) {
                             localSpeaking = true;
                             if (myCard) myCard.querySelector('.avatar')?.classList.add('speaking');
@@ -2429,15 +2556,9 @@
             }
         }
 
-        // СТАРТ СОЕДИНЕНИЯ: МГНОВЕННАЯ ОТРИСОВКА СВОЕЙ КАРТОЧКИ (0 МС) + НАДЕЖНЫЙ P2P WEBRTC
+        // СТАРТ СОЕДИНЕНИЯ: МГНОВЕННЫЙ ВХОД + НАТИВНЫЙ WEBRTC ЧЕРЕЗ ШИНУ + WSS AUDIO RELAY
         function startPeerConnection() {
-            if (peer && !peer.destroyed) {
-                try { peer.destroy(); } catch (e) {}
-            }
-
             isInRoom = true;
-            isMyPeerOpen = false;
-            peerDisconnectedSince = 0;
             myJoinTimestamp = Date.now();
             bannedDevices = loadRoomBannedDevices(activeRoom);
             roomCreatorDeviceId = localStorage.getItem('voiceup_creator_' + activeRoom) || "";
@@ -2452,35 +2573,17 @@
             }
 
             peerJoinTimestamps[myId] = myJoinTimestamp;
-            peerHealth[myId] = { lastSeen: Date.now(), rtt: 0, quality: 'good', reconnecting: false, discoveredAt: Date.now() };
+            peerHealth[myId] = { lastSeen: Date.now(), rtt: 0, quality: 'good', discoveredAt: Date.now() };
             userStates[myId] = { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted };
 
-            // 1. МГНОВЕННО рисуем свою карточку на экране комнаты
+            // 1. МГНОВЕННО рисуем свою карточку на экране комнаты (0 мс)
             addUserCard(myId, myProfile, true);
             recalculateRoomAdmin();
             startLocalSpeakingDetector();
+            startWssAudioRelayTransmitter();
             startSessionTimer();
 
-            // 2. Открываем PeerJS узел
-            peer = new Peer(myId, PEER_CONFIG);
-            bindPeerEvents();
-
-            peer.on('open', () => {
-                isMyPeerOpen = true;
-                peerDisconnectedSince = 0;
-                publishToDiscoveryBus(buildPresencePacket('presence'));
-                publishNtfyEvent(buildPresencePacket('presence'));
-
-                // Как только наш Peer открыт на 0.peerjs.com — соединяемся со всеми готовыми участниками
-                Object.keys(userProfiles).forEach(pid => {
-                    if (pid && pid !== myId && remotePeerReady[pid] === true) {
-                        connectDataToPeer(pid);
-                        evaluateVoiceCall(pid);
-                    }
-                });
-            });
-
-            // 3. Запускаем шину обнаружения (MQTT WSS + ntfy WSS + BroadcastChannel)
+            // 2. Запускаем многоканальную шину синхронизации и голосовой связи
             startMultiBrokerDiscovery();
             startPresenceLoop();
         }
@@ -2776,6 +2879,9 @@
             localPeerSettings[id].volume = parseFloat(vol); 
             const audio = document.getElementById(`audio-${id}`);
             if (audio && !localPeerSettings[id].muted) audio.volume = parseFloat(vol);
+            if (relayPeerGainNodes[id] && !localPeerSettings[id].muted) {
+                relayPeerGainNodes[id].gain.value = parseFloat(vol);
+            }
         };
         
         window.toggleLocalMute = (id) => { 
@@ -2783,6 +2889,9 @@
             localPeerSettings[id].muted = !localPeerSettings[id].muted; 
             const audio = document.getElementById(`audio-${id}`);
             if (audio) audio.volume = localPeerSettings[id].muted ? 0 : localPeerSettings[id].volume;
+            if (relayPeerGainNodes[id]) {
+                relayPeerGainNodes[id].gain.value = localPeerSettings[id].muted ? 0 : localPeerSettings[id].volume;
+            }
             updateCardVisuals(id, userProfiles[id], false); 
         };
 
@@ -2871,10 +2980,9 @@
                 broadcastSignaling(leavePacket);
                 publishNtfyEvent(leavePacket);
             } catch (e) {}
+            stopWssAudioRelayTransmitter();
             stopMultiBrokerDiscovery();
-            if (peer && !peer.destroyed) {
-                try { peer.destroy(); } catch (e) {}
-            }
+            Object.keys(rtcPeers).forEach(pid => cleanupCall(pid));
         }
 
         function leaveRoom() { 
@@ -2983,7 +3091,7 @@
             userProfiles[id] = profile; 
             if(!userStates[id]) userStates[id] = { mic: true, deaf: false, adminMuted: false }; 
             if(!localPeerSettings[id]) localPeerSettings[id] = { volume: 1, muted: false };
-            if(!peerHealth[id]) peerHealth[id] = { lastSeen: Date.now(), rtt: 30, quality: 'good', reconnecting: false, discoveredAt: Date.now() };
+            if(!peerHealth[id]) peerHealth[id] = { lastSeen: Date.now(), rtt: 30, quality: 'good', discoveredAt: Date.now() };
             
             updateCardVisuals(id, profile, isMe); 
             if (isNew && !isMe) setTimeout(() => playUiSound('join'), 400);
@@ -3109,6 +3217,7 @@
         function showBannedScreen() { 
             isInRoom = false;
             stopSessionTimer();
+            stopWssAudioRelayTransmitter();
             if (presenceTimer) clearInterval(presenceTimer);
             if (localStream) localStream.getTracks().forEach(t => t.stop()); 
             joinScreen.style.display = 'none'; 
@@ -3139,11 +3248,9 @@
         backToMenuBtn.onclick = () => {
             if (appealCheckTimer) clearInterval(appealCheckTimer);
             if (presenceTimer) clearInterval(presenceTimer);
+            stopWssAudioRelayTransmitter();
             stopMultiBrokerDiscovery();
-            if (peer && !peer.destroyed) {
-                try { peer.destroy(); } catch (e) {}
-            }
-            peer = null;
+            Object.keys(rtcPeers).forEach(pid => cleanupCall(pid));
             bannedScreen.style.display = 'none';
             roomScreen.innerHTML = '';
             roomScreen.style.display = 'flex';
@@ -3164,7 +3271,6 @@
             if (notif) notif.remove(); 
             const acceptMsg = { type: 'appeal_accepted', target: targetId, deviceId: deviceId };
             sendToPeer(targetId, acceptMsg);
-            publishToDiscoveryBus(acceptMsg);
             publishNtfyEvent(acceptMsg);
         };
         
@@ -3174,7 +3280,7 @@
             if (notif) notif.remove(); 
         };
 
-        // ЗАХВАТ МИКРОФОНА С ТОЧНЫМИ ПАРАМЕТРАМИ ИЗ РАБОЧЕЙ ВЕРСИИ
+        // ЗАХВАТ МИКРОФОНА
         async function acquireAudioStreamSafe() {
             let stream = null;
             try {
