@@ -657,22 +657,20 @@
 
     <script>
         const MAX_PINNED_ROOMS = 5;
-        const MAX_ROOM_SLOTS = 6; // Фиксированные слоты обнаружения: ${activeRoom}_0 ... ${activeRoom}_5
-        const HEARTBEAT_INTERVAL_MS = 3000; // Пинг-понг каждые 3 секунды
-        const HOST_ELECTION_TIMEOUT_MS = 4500; // Если хост не отвечает > 4 сек — выборы нового хоста
+        const MAX_ROOM_SLOTS = 8; // 8 фиксированных слотов: ${activeRoom}_s1 ... ${activeRoom}_s8
+        const RADAR_INTERVAL_MS = 2500; // Постоянный Радар каждые 2.5 секунды
+        const CONNECT_ATTEMPT_TIMEOUT_MS = 4000; // Таймаут попытки подключения 4 секунды
         const PEER_STALE_TIMEOUT_MS = 9000;
-        const PEER_DEAD_TIMEOUT_MS = 28000;
+        const PEER_DEAD_TIMEOUT_MS = 22000;
 
-        // НАДЕЖНЫЕ БЫСТРЫЕ STUN СЕРВЕРЫ БЕЗ ЗАВИСАЮЩИХ МЕРТВЫХ TURN-ПРОКСИ
+        // 3. ЧИСТЫЙ И БЫСТРЫЙ PEER_CONFIG (ТОЛЬКО ПРОВЕРЕННЫЕ STUN GOOGLE И CLOUDFLARE БЕЗ МЕРТВЫХ TURN)
         const PEER_CONFIG = {
             config: {
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
                     { urls: 'stun:stun1.l.google.com:19302' },
                     { urls: 'stun:stun2.l.google.com:19302' },
-                    { urls: 'stun:stun3.l.google.com:19302' },
-                    { urls: 'stun:stun4.l.google.com:19302' },
-                    { urls: 'stun:global.stun.twilio.com:3478' }
+                    { urls: 'stun:stun.cloudflare.com:3478' }
                 ]
             },
             pingInterval: 5000
@@ -795,7 +793,7 @@
 
         const myDeviceType = detectDeviceType();
 
-        // 3. ИКОНКИ ТИПОВ УСТРОЙСТВ И БРАУЗЕРА (SVG: Монитор ПК / Смартфон / Десктопное приложение .exe)
+        // ИКОНКИ ТИПОВ УСТРОЙСТВ И БРАУЗЕРА (SVG: Монитор ПК / Смартфон / Приложение)
         function getStatusDotHtml(deviceType) {
             if (deviceType === 'mobile') {
                 return `<div class="status-device-indicator" title="смартфон">
@@ -848,7 +846,7 @@
             }
         }
 
-        // АВТОГЕНЕРАЦИЯ УНИКАЛЬНЫХ ИМЕН КОМНАТ (vup-xxxx-xxxx)
+        // АВТОГЕНЕРАЦИЯ УНИКАЛЬНЫХ ИМЕН КОМНАТ (ТОЛЬКО ЕСЛИ ПОЛЕ И URL ПУСТЫЕ)
         function generateUniqueRoomId() {
             const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
             const block = () => {
@@ -861,13 +859,12 @@
             return `vup-${block()}-${block()}`;
         }
 
-        const urlParams = new URLSearchParams(window.location.search);
-        let activeRoom = urlParams.get('room') || window.location.hash.replace('#', '').trim();
-        
         function sanitizeRoomName(name) {
             return name.replace(/[^a-zA-Z0-9_\-]/g, '').toLowerCase().substring(0, 28);
         }
 
+        const urlParams = new URLSearchParams(window.location.search);
+        let activeRoom = urlParams.get('room') || window.location.hash.replace('#', '').trim();
         if (activeRoom) {
             activeRoom = sanitizeRoomName(activeRoom);
         }
@@ -892,7 +889,11 @@
         const pinnedCounterText = document.getElementById('pinned-counter-text');
         const pinnedRoomsList = document.getElementById('pinned-rooms-list');
 
-        // 2. ТАЙМЕР ДЛИТЕЛЬНОСТИ СЕССИИ (00:00 / 00:00:00)
+        if (activeRoom) {
+            roomCodeInput.value = activeRoom;
+        }
+
+        // ТАЙМЕР ДЛИТЕЛЬНОСТИ СЕССИИ (00:00 / 00:00:00)
         let sessionStartTime = 0;
         let sessionTimerInterval = null;
 
@@ -971,51 +972,23 @@
             }
         }
 
-        if (activeRoom) {
-            roomCodeInput.value = activeRoom;
-        }
-
-        // СОСТОЯНИЕ РОЛЕЙ И КООРДИНАЦИИ КОМНАТЫ (СТРОГО ОДИН СОЗДАТЕЛЬ)
-        let isRoomHost = false;
+        // СОСТОЯНИЕ ПУЛА СЛОТОВ (${activeRoom}_s1 ... ${activeRoom}_s8) И НАСТОЯЩЕГО СОЗДАТЕЛЯ
         let myId = "";
-        let mySlotIndex = -1;
-        let myJoinedAt = 0;
-        let currentHostId = "";
+        let mySlotNumber = 1;
+        let myJoinTimestamp = 0;
+        let roomCreatorDeviceId = "";
+        let currentAdminPeerId = "";
         let qrCodeInstance = null;
-        let heartbeatTimer = null;
-        let meshScanTimer = null;
+        let radarTimer = null;
 
-        function getSlotPeerId(slotIdx) {
-            return `${activeRoom}_${slotIdx}`;
+        function getSlotPeerId(slotNum) {
+            return `${activeRoom}_s${slotNum}`;
         }
 
-        function getAllSlotPeerIds() {
-            const slots = [];
-            for (let i = 0; i < MAX_ROOM_SLOTS; i++) {
-                slots.push(getSlotPeerId(i));
-            }
-            return slots;
-        }
-
-        // Кеширование известных пиров комнаты для мгновенного обнаружения при перезаходе
-        function getCachedRoomPeers() {
-            try {
-                const raw = localStorage.getItem('voiceup_cached_peers_' + activeRoom);
-                if (!raw) return [];
-                const parsed = JSON.parse(raw);
-                return Array.isArray(parsed) ? parsed : [];
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function updateCachedRoomPeers() {
-            try {
-                const peers = Object.keys(activeConnections).filter(id => id && id !== myId);
-                if (myId) peers.push(myId);
-                const unique = Array.from(new Set(peers)).slice(-12);
-                localStorage.setItem('voiceup_cached_peers_' + activeRoom, JSON.stringify(unique));
-            } catch (e) {}
+        function parseSlotNumber(peerId) {
+            if (!peerId) return 999;
+            const match = peerId.match(/_s(\d+)$/);
+            return match ? parseInt(match[1], 10) : 999;
         }
 
         function updateRoomHeaderUI() {
@@ -1025,12 +998,10 @@
             pinRoomBtn.classList.toggle('active', isPinned);
             pinBtnText.innerText = isPinned ? dict[currentLang].pinnedActive : dict[currentLang].pinBtn;
 
-            // Статус "создатель" строго у ОДНОГО участника (currentHostId === myId)
-            const amISingleHost = Boolean(myId && currentHostId === myId);
-            isRoomHost = amISingleHost;
-            myProfile.isAdmin = amISingleHost;
+            const amIAdmin = Boolean(myId && currentAdminPeerId === myId);
+            myProfile.isAdmin = amIAdmin;
 
-            if (amISingleHost) {
+            if (amIAdmin) {
                 roomRoleTag.className = 'role-badge host';
                 roomRoleTag.innerText = dict[currentLang].host;
             } else {
@@ -1045,6 +1016,7 @@
         const activeConnections = {};
         const connectionAttemptTs = {};
         const activeCalls = {};
+        const remoteStreams = {};
         const remoteAudioAnalysers = {};
         const peerHealth = {};
         const peerJoinTimestamps = {};
@@ -1058,7 +1030,6 @@
             savedProfileRaw = {};
         }
 
-        // Никогда не загружаем устаревший флаг isAdmin из localStorage профиля!
         let myProfile = {
             nick: savedProfileRaw.nick || "",
             color: savedProfileRaw.color || "#ffffff",
@@ -1101,48 +1072,77 @@
         let isAssigningMicHotkey = false; 
         let isAssigningDeafenHotkey = false;
 
-        // ДЕТЕРМИНИРОВАННЫЙ ВЫБОР ЕДИНСТВЕННОГО СОЗДАТЕЛЯ (HOST ELECTION / RECONCILIATION)
-        // Гарантирует, что в комнате СТРОГО ОДИН "создатель" (участник с самым ранним временем входа joinedAt, при равенстве — наименьший ID слота)
-        function electAndSyncSingleHost() {
+        // 2. СИСТЕМА "НАСТОЯЩИЙ СОЗДАТЕЛЬ" С АВТО-ВОЗВРАТОМ АДМИНКИ
+        function recalculateRoomAdmin() {
             if (!myId) return;
 
-            peerJoinTimestamps[myId] = myJoinedAt;
+            userProfiles[myId] = myProfile;
+            peerJoinTimestamps[myId] = myJoinTimestamp;
 
-            const candidates = [myId];
+            // Собираем всех живых онлайн участников комнаты (включая себя)
+            const onlinePeers = [myId];
             Object.keys(userProfiles).forEach(pid => {
                 if (pid && pid !== myId) {
                     const lastSeen = peerHealth[pid]?.lastSeen || 0;
                     if (Date.now() - lastSeen <= PEER_DEAD_TIMEOUT_MS) {
-                        candidates.push(pid);
+                        onlinePeers.push(pid);
                     }
                 }
             });
 
-            // Если текущий хост жив и отвечает на пинги быстрее 4.5 сек — проверяем, кто вошел раньше всех
-            candidates.sort((a, b) => {
-                const tsA = peerJoinTimestamps[a] || Number.MAX_SAFE_INTEGER;
-                const tsB = peerJoinTimestamps[b] || Number.MAX_SAFE_INTEGER;
-                if (Math.abs(tsA - tsB) > 400) {
-                    return tsA - tsB;
+            // Если в комнате еще не определен создатель и мы единственные (или зашли первыми в пустую комнату)
+            if (!roomCreatorDeviceId) {
+                const savedCreator = localStorage.getItem('voiceup_creator_' + activeRoom);
+                if (savedCreator) {
+                    roomCreatorDeviceId = savedCreator;
+                } else if (onlinePeers.length === 1 && mySlotNumber === 1) {
+                    roomCreatorDeviceId = myProfile.deviceId;
+                    localStorage.setItem('voiceup_creator_' + activeRoom, roomCreatorDeviceId);
                 }
-                return a.localeCompare(b);
-            });
+            }
 
-            const winnerId = candidates[0] || myId;
-            const changed = (currentHostId !== winnerId);
-            currentHostId = winnerId;
-            isRoomHost = (currentHostId === myId);
-            myProfile.isAdmin = isRoomHost;
+            let electedAdminPeerId = "";
 
-            // Обновляем флаг isAdmin у всех карточек: строго один админ (winnerId)
+            // 1. Проверяем: есть ли среди присутствующих онлайн человек, чей profile.deviceId === roomCreatorDeviceId?
+            if (roomCreatorDeviceId) {
+                for (let i = 0; i < onlinePeers.length; i++) {
+                    const pid = onlinePeers[i];
+                    const prof = pid === myId ? myProfile : userProfiles[pid];
+                    if (prof && prof.deviceId === roomCreatorDeviceId) {
+                        electedAdminPeerId = pid;
+                        break;
+                    }
+                }
+            }
+
+            // 2. Если настоящий создатель вышел из комнаты (или еще не синхронизирован) —
+            // права админа временно передаются тому из оставшихся онлайн участников, кто зашел раньше всех
+            // (минимальный joinTimestamp, а при равенстве — меньший номер слота s1..s8)
+            if (!electedAdminPeerId) {
+                const sorted = [...onlinePeers].sort((a, b) => {
+                    const tsA = peerJoinTimestamps[a] || Number.MAX_SAFE_INTEGER;
+                    const tsB = peerJoinTimestamps[b] || Number.MAX_SAFE_INTEGER;
+                    if (Math.abs(tsA - tsB) > 250) {
+                        return tsA - tsB;
+                    }
+                    return parseSlotNumber(a) - parseSlotNumber(b);
+                });
+                electedAdminPeerId = sorted[0] || myId;
+            }
+
+            currentAdminPeerId = electedAdminPeerId;
+            myProfile.isAdmin = (currentAdminPeerId === myId);
+
+            // Обновляем статус isAdmin у всех участников (строго один создатель в комнате!)
             Object.keys(userProfiles).forEach(pid => {
                 if (userProfiles[pid]) {
-                    userProfiles[pid].isAdmin = (pid === currentHostId);
+                    userProfiles[pid].isAdmin = (pid === currentAdminPeerId);
                 }
             });
 
             updateRoomHeaderUI();
 
+            // Перерисовываем карточки всех участников, чтобы корона/щит админа и админ-меню мгновенно обновились
             if (document.getElementById(`card-${myId}`)) {
                 updateCardVisuals(myId, myProfile, true);
             }
@@ -1151,28 +1151,10 @@
                     updateCardVisuals(pid, userProfiles[pid], false);
                 }
             });
-
-            if (changed && isRoomHost) {
-                broadcastSignaling({
-                    type: 'host-sync',
-                    id: myId,
-                    hostId: currentHostId,
-                    joinedAt: myJoinedAt
-                });
-            }
         }
 
         function shouldInitiateCall(peerA, peerB) {
             return peerA > peerB;
-        }
-
-        function getKnownPeerList() {
-            const set = new Set([
-                myId,
-                ...Object.keys(activeConnections).filter(id => activeConnections[id]?.open),
-                ...Object.keys(userProfiles)
-            ]);
-            return Array.from(set).filter(Boolean);
         }
 
         function broadcastSignaling(msgObj) {
@@ -1195,113 +1177,97 @@
             setTimeout(() => { toastNotif.classList.remove('show'); }, 1800);
         }
 
-        // 4. ЗАЩИТА ОТ ОБРЫВОВ WEBRTC (HEARTBEAT КАЖДЫЕ 3 СЕК + HOST MIGRATION ЗА 4 СЕК)
-        function startHeartbeatLoop() {
-            if (heartbeatTimer) clearInterval(heartbeatTimer);
+        function buildHandshakePacket(type = 'handshake') {
+            return {
+                type: type,
+                id: myId,
+                profile: myProfile,
+                state: userStates[myId] || { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted },
+                joinTimestamp: myJoinTimestamp,
+                roomCreatorId: roomCreatorDeviceId
+            };
+        }
 
-            heartbeatTimer = setInterval(() => {
-                if (!peer) return;
+        // 1. ПОСТОЯННЫЙ РАДАР (DISCOVERY LOOP КАЖДЫЕ 2.5 СЕКУНДЫ ПО СЛОТАМ s1..s8 + HEARTBEAT)
+        function runRadarCycle() {
+            if (!peer || peer.destroyed || !myId) return;
 
-                // Если соединение с брокером PeerJS разорвалось — автоматически переподключаемся
-                if (peer.disconnected && !peer.destroyed) {
-                    updateNetQualityDOM(myId, 'bad', 999);
-                    try { peer.reconnect(); } catch (e) {}
-                } else if (!peer.destroyed) {
-                    updateNetQualityDOM(myId, 'good', 0);
+            // 1. Если соединение с сигнальным сервером PeerJS прервалось — автоматически переподключаемся
+            if (peer.disconnected && !peer.destroyed) {
+                updateNetQualityDOM(myId, 'bad', 999);
+                try { peer.reconnect(); } catch (e) {}
+            } else {
+                updateNetQualityDOM(myId, 'good', 0);
+            }
+
+            const now = Date.now();
+
+            // 2. Проходим циклом по всем 8 фиксированным слотам комнаты: s1 .. s8
+            for (let i = 1; i <= MAX_ROOM_SLOTS; i++) {
+                const targetId = getSlotPeerId(i);
+                if (targetId === myId) continue;
+
+                const conn = activeConnections[targetId];
+                if (!conn || !conn.open) {
+                    connectDataToPeer(targetId);
+                } else {
+                    // Отправляем ping для проверки живости канала, RTT и синхронизации создателя комнаты
+                    try {
+                        conn.send({
+                            type: 'ping',
+                            id: myId,
+                            ts: now,
+                            joinTimestamp: myJoinTimestamp,
+                            roomCreatorId: roomCreatorDeviceId
+                        });
+                    } catch (e) {}
+
+                    // Если DataConnection открыт, но нет живого аудиопотока — поднимаем голосовой звонок
+                    if (!remoteStreams[targetId] && !activeCalls[targetId]) {
+                        evaluateVoiceCall(targetId);
+                    }
+                }
+            }
+
+            // 3. Проверяем здоровье всех известных участников и замеряем RTT через WebRTC getStats()
+            Object.keys(userProfiles).forEach(pid => {
+                if (!pid || pid === myId) return;
+                if (!peerHealth[pid]) {
+                    peerHealth[pid] = { lastSeen: now, rtt: 35, quality: 'good', reconnecting: false };
                 }
 
-                const now = Date.now();
-                const allPeerIds = new Set([
-                    ...Object.keys(activeConnections),
-                    ...Object.keys(userProfiles).filter(id => id !== myId)
-                ]);
-
-                allPeerIds.forEach(pid => {
-                    if (!pid || pid === myId) return;
-
-                    if (!peerHealth[pid]) {
-                        peerHealth[pid] = { lastSeen: now, rtt: 40, quality: 'good', reconnecting: false };
-                    }
-
-                    const conn = activeConnections[pid];
-                    if (conn && conn.open) {
-                        try {
-                            conn.send({
-                                type: 'ping',
-                                id: myId,
-                                ts: now,
-                                joinedAt: myJoinedAt,
-                                hostId: currentHostId,
-                                peers: getKnownPeerList()
-                            });
-                        } catch (e) {}
-                    }
-
-                    // Замер RTT через WebRTC getStats, если есть активный звонок
-                    const call = activeCalls[pid];
-                    if (call && call.peerConnection) {
-                        try {
-                            call.peerConnection.getStats().then(stats => {
-                                stats.forEach(report => {
-                                    if (report.type === 'candidate-pair' && report.state === 'succeeded' && typeof report.currentRoundTripTime === 'number') {
-                                        const statsRtt = Math.round(report.currentRoundTripTime * 1000);
-                                        if (statsRtt > 0) {
-                                            applyRttMeasurement(pid, statsRtt);
-                                        }
+                const call = activeCalls[pid];
+                if (call && call.peerConnection) {
+                    try {
+                        call.peerConnection.getStats().then(stats => {
+                            stats.forEach(report => {
+                                if (report.type === 'candidate-pair' && report.state === 'succeeded' && typeof report.currentRoundTripTime === 'number') {
+                                    const statsRtt = Math.round(report.currentRoundTripTime * 1000);
+                                    if (statsRtt > 0) {
+                                        applyRttMeasurement(pid, statsRtt);
                                     }
-                                });
-                            }).catch(() => {});
-                        } catch (e) {}
-                    }
+                                }
+                            });
+                        }).catch(() => {});
+                    } catch (e) {}
+                }
 
-                    const elapsed = now - peerHealth[pid].lastSeen;
-
-                    // Если текущий Хост не отвечает дольше 4.5 секунд — запускаем процедуру выборов нового хоста (Host Migration)
-                    if (pid === currentHostId && elapsed > HOST_ELECTION_TIMEOUT_MS) {
-                        delete peerJoinTimestamps[pid];
-                        electAndSyncSingleHost();
-                    }
-
-                    if (elapsed > PEER_DEAD_TIMEOUT_MS) {
-                        cleanupPeer(pid);
-                    } else if (elapsed > PEER_STALE_TIMEOUT_MS) {
-                        updateNetQualityDOM(pid, 'bad', Math.min(999, Math.round(elapsed / 10)));
-                        triggerSoftPeerReconnect(pid);
-                    }
-                });
-
-                electAndSyncSingleHost();
-            }, HEARTBEAT_INTERVAL_MS);
-        }
-
-        // ПЕРИОДИЧЕСКИЙ RENDEZVOUS-ОПРОС СЛОТОВ КОМНАТЫ (ДЛЯ АВТО-СШИВКИ MESH СЕТИ)
-        function scanRoomSlotsForPeers() {
-            if (!peer || peer.destroyed || !myId) return;
-            const slots = getAllSlotPeerIds();
-            const cached = getCachedRoomPeers();
-            const targets = Array.from(new Set([...slots, ...cached]));
-
-            targets.forEach(targetId => {
-                if (!targetId || targetId === myId) return;
-                connectDataToPeer(targetId);
+                const elapsed = now - peerHealth[pid].lastSeen;
+                if (elapsed > PEER_DEAD_TIMEOUT_MS) {
+                    cleanupPeer(pid);
+                } else if (elapsed > PEER_STALE_TIMEOUT_MS) {
+                    updateNetQualityDOM(pid, 'bad', Math.min(999, Math.round(elapsed / 10)));
+                    triggerSoftPeerReconnect(pid);
+                }
             });
+
+            recalculateRoomAdmin();
         }
 
-        function startMeshDiscoveryLoop() {
-            if (meshScanTimer) clearInterval(meshScanTimer);
-            // Сразу сканируем все слоты комнаты при входе, затем повторяем через 2.5с и каждые 6с
-            scanRoomSlotsForPeers();
-            setTimeout(scanRoomSlotsForPeers, 2500);
-            meshScanTimer = setInterval(() => {
-                if (!peer || peer.destroyed) return;
-                // Опрашиваем слоты, с которыми еще нет открытого соединения
-                const slots = getAllSlotPeerIds();
-                slots.forEach(slotId => {
-                    if (slotId !== myId && (!activeConnections[slotId] || !activeConnections[slotId].open)) {
-                        connectDataToPeer(slotId);
-                    }
-                });
-            }, 6000);
+        function startRadarLoop() {
+            if (radarTimer) clearInterval(radarTimer);
+            runRadarCycle();
+            radarTimer = setInterval(runRadarCycle, RADAR_INTERVAL_MS);
         }
 
         function applyRttMeasurement(peerId, rttMs) {
@@ -1315,7 +1281,7 @@
             updateNetQualityDOM(peerId, q, rttMs);
         }
 
-        // ПЛАВНОЕ АВТО-ПЕРЕПОДКЛЮЧЕНИЕ WEBRTC БЕЗ СБРОСА ИНТЕРФЕЙСА
+        // МЯГКОЕ ПЕРЕПОДКЛЮЧЕНИЕ WEBRTC ПРИ ОБРЫВЕ
         function triggerSoftPeerReconnect(remoteId) {
             if (!peer || peer.destroyed || !remoteId || remoteId === myId) return;
             if (reconnectLocks[remoteId]) return;
@@ -1323,7 +1289,6 @@
             reconnectLocks[remoteId] = true;
             updateNetQualityDOM(remoteId, 'bad', peerHealth[remoteId]?.rtt || 450);
 
-            // 1. Проверяем DataConnection
             const existingConn = activeConnections[remoteId];
             if (!existingConn || !existingConn.open) {
                 try { if (existingConn) existingConn.close(); } catch (e) {}
@@ -1332,21 +1297,15 @@
                 connectDataToPeer(remoteId);
             } else {
                 try {
-                    existingConn.send({
-                        type: 'request_voice_reconnect',
-                        id: myId,
-                        joinedAt: myJoinedAt,
-                        profile: myProfile,
-                        state: userStates[myId]
-                    });
+                    existingConn.send(buildHandshakePacket('request_voice_reconnect'));
                 } catch (e) {}
             }
 
-            // 2. Проверяем MediaConnection (голос) и делаем ICE restart / перевызов
             const existingCall = activeCalls[remoteId];
             const iceState = existingCall?.peerConnection?.iceConnectionState;
             const connState = existingCall?.peerConnection?.connectionState;
             const isCallBroken = !existingCall ||
+                !remoteStreams[remoteId] ||
                 iceState === 'disconnected' ||
                 iceState === 'failed' ||
                 iceState === 'closed' ||
@@ -1364,33 +1323,59 @@
                     try { existingCall.close(); } catch (e) {}
                     delete activeCalls[remoteId];
                 }
+                delete remoteStreams[remoteId];
                 setTimeout(() => {
                     if (localStream && peer && !peer.destroyed) {
                         callVoicePeer(remoteId, true);
                     }
-                }, 350);
+                }, 300);
             }
 
             setTimeout(() => {
                 delete reconnectLocks[remoteId];
-            }, 4500);
+            }, 4000);
         }
 
-        // ОБРАБОТЧИК СИГНАЛОВ MESH-СЕТИ
+        // Синхронизация roomCreatorDeviceId при обмене пакетами
+        function syncRoomCreatorId(incomingCreatorId, senderPeerId, senderJoinTs) {
+            if (!incomingCreatorId) return;
+
+            if (!roomCreatorDeviceId) {
+                roomCreatorDeviceId = incomingCreatorId;
+                localStorage.setItem('voiceup_creator_' + activeRoom, roomCreatorDeviceId);
+                return;
+            }
+
+            // Если возник конфликт двух разных creatorId (например, два клиента создали комнату в разное время),
+            // побеждает тот создатель, который уже находился в комнате раньше (меньший joinTimestamp или меньший слот)
+            if (roomCreatorDeviceId !== incomingCreatorId) {
+                const myTs = myJoinTimestamp || Number.MAX_SAFE_INTEGER;
+                const remoteTs = senderJoinTs || peerJoinTimestamps[senderPeerId] || Number.MAX_SAFE_INTEGER;
+                if (remoteTs < myTs - 200 || (Math.abs(remoteTs - myTs) <= 200 && parseSlotNumber(senderPeerId) < mySlotNumber)) {
+                    roomCreatorDeviceId = incomingCreatorId;
+                    localStorage.setItem('voiceup_creator_' + activeRoom, roomCreatorDeviceId);
+                }
+            }
+        }
+
+        // ОБРАБОТЧИК СИГНАЛОВ МЕЖДУ СЛОТАМИ
         function handleIncomingSignal(remoteId, message) {
             if (!message || typeof message !== 'object') return;
             const peerId = message.id || remoteId;
             if (!peerId || peerId === myId) return;
 
-            // Обновляем таймер активности пира
             if (!peerHealth[peerId]) {
                 peerHealth[peerId] = { lastSeen: Date.now(), rtt: 35, quality: 'good', reconnecting: false };
             } else {
                 peerHealth[peerId].lastSeen = Date.now();
             }
 
-            if (typeof message.joinedAt === 'number' && message.joinedAt > 0) {
-                peerJoinTimestamps[peerId] = message.joinedAt;
+            if (typeof message.joinTimestamp === 'number' && message.joinTimestamp > 0) {
+                peerJoinTimestamps[peerId] = message.joinTimestamp;
+            }
+
+            if (message.roomCreatorId) {
+                syncRoomCreatorId(message.roomCreatorId, peerId, message.joinTimestamp);
             }
 
             // Heartbeat Ping / Pong
@@ -1399,40 +1384,20 @@
                     type: 'pong',
                     id: myId,
                     ts: message.ts,
-                    joinedAt: myJoinedAt,
-                    hostId: currentHostId,
-                    peers: getKnownPeerList()
+                    joinTimestamp: myJoinTimestamp,
+                    roomCreatorId: roomCreatorDeviceId
                 });
-                if (Array.isArray(message.peers)) {
-                    message.peers.forEach(otherId => {
-                        if (otherId && otherId !== myId && (!activeConnections[otherId] || !activeConnections[otherId].open)) {
-                            connectDataToPeer(otherId);
-                        }
-                    });
-                }
-                if (!activeCalls[peerId]) {
+                if (!remoteStreams[peerId] && !activeCalls[peerId]) {
                     evaluateVoiceCall(peerId);
                 }
-                electAndSyncSingleHost();
+                recalculateRoomAdmin();
                 return;
             }
 
             if (message.type === 'pong') {
                 const rtt = Math.max(1, Date.now() - (message.ts || Date.now()));
                 applyRttMeasurement(peerId, rtt);
-                if (Array.isArray(message.peers)) {
-                    message.peers.forEach(otherId => {
-                        if (otherId && otherId !== myId && (!activeConnections[otherId] || !activeConnections[otherId].open)) {
-                            connectDataToPeer(otherId);
-                        }
-                    });
-                }
-                electAndSyncSingleHost();
-                return;
-            }
-
-            if (message.type === 'host-sync') {
-                electAndSyncSingleHost();
+                recalculateRoomAdmin();
                 return;
             }
 
@@ -1441,22 +1406,23 @@
                     try { activeCalls[peerId].close(); } catch (e) {}
                     delete activeCalls[peerId];
                 }
+                delete remoteStreams[peerId];
                 callVoicePeer(peerId, true);
                 return;
             }
 
             const peerProfile = message.profile || userProfiles[peerId] || { nick: dict[currentLang].guest, color: '#ffffff', avatar: '', deviceType: 'pc' };
 
-            // Проверка бана (выполняет текущий создатель комнаты)
-            if (isRoomHost && (message.type === 'join' || message.type === 'handshake')) {
-                if (bannedDevices[message.profile?.deviceId]) {
+            // Проверка бана (выполняет текущий админ комнаты)
+            if (myProfile.isAdmin && (message.type === 'handshake' || message.type === ' handshake_reply' || message.type === 'join')) {
+                if (bannedDevices[peerProfile.deviceId]) {
                     sendToPeer(peerId, { type: 'banned_reject', target: peerId, senderName: myProfile.nick });
                     return;
                 }
             }
 
             // Апелляция бана
-            if (isRoomHost && message.type === 'ban_appeal') {
+            if (myProfile.isAdmin && message.type === 'ban_appeal') {
                 if (ignoredAppeals[message.deviceId]) return; 
                 const notifId = `appeal-${message.deviceId}`; 
                 if (document.getElementById(notifId)) return; 
@@ -1496,7 +1462,7 @@
                 const targetToClean = message.id || peerId;
                 cleanupPeer(targetToClean);
                 playUiSound('leave');
-                electAndSyncSingleHost();
+                recalculateRoomAdmin();
                 return;
             }
 
@@ -1519,87 +1485,24 @@
 
             if (message.type === 'update-profile') { 
                 userProfiles[peerId] = peerProfile; 
-                electAndSyncSingleHost();
+                recalculateRoomAdmin();
                 updateCardVisuals(peerId, userProfiles[peerId], false); 
                 return; 
             }
 
-            // ПОЛНАЯ СИНХРОНИЗАЦИЯ УЧАСТНИКОВ (Join / Room-State / Handshake / New-Peer)
-            if (message.type === 'join' || message.type === 'handshake') {
+            // ОБМЕН ПАКЕТОМ HANDSHAKE МЕЖДУ СЛОТАМИ И ПОДНЯТИЕ ГОЛОСОВОГО КАНАЛА
+            if (message.type === 'handshake' || message.type === 'handshake_ack' || message.type === 'join') {
                 userProfiles[peerId] = peerProfile;
                 userStates[peerId] = message.state || { mic: true, deaf: false, adminMuted: false };
                 addUserCard(peerId, peerProfile, false);
-                electAndSyncSingleHost();
-                updateCachedRoomPeers();
+                recalculateRoomAdmin();
 
-                // Отправляем полное состояние комнаты и список всех известных участников
-                sendToPeer(peerId, {
-                    type: 'room-state',
-                    target: peerId,
-                    id: myId,
-                    joinedAt: myJoinedAt,
-                    hostId: currentHostId,
-                    profile: myProfile,
-                    state: userStates[myId],
-                    peerList: getKnownPeerList()
-                });
-
-                if (message.type === 'join') {
-                    broadcastSignaling({
-                        type: 'new-peer-announced',
-                        id: peerId,
-                        joinedAt: peerJoinTimestamps[peerId],
-                        profile: peerProfile,
-                        state: userStates[peerId]
-                    });
-                }
-
-                if (Array.isArray(message.peerList)) {
-                    message.peerList.forEach(otherId => {
-                        if (otherId && otherId !== myId && (!activeConnections[otherId] || !activeConnections[otherId].open)) {
-                            connectDataToPeer(otherId);
-                        }
-                    });
+                // Если это входящий handshake — отправляем ответный handshake_ack со своими данными и roomCreatorId
+                if (message.type === 'handshake' || message.type === 'join') {
+                    sendToPeer(peerId, buildHandshakePacket('handshake_ack'));
                 }
 
                 evaluateVoiceCall(peerId);
-                return;
-            }
-
-            if (message.type === 'room-state') {
-                userProfiles[peerId] = peerProfile;
-                userStates[peerId] = message.state || { mic: true, deaf: false, adminMuted: false };
-                addUserCard(peerId, peerProfile, false);
-                electAndSyncSingleHost();
-                updateCachedRoomPeers();
-                evaluateVoiceCall(peerId);
-
-                if (Array.isArray(message.peerList)) {
-                    message.peerList.forEach(otherId => {
-                        if (otherId && otherId !== myId && (!activeConnections[otherId] || !activeConnections[otherId].open)) {
-                            connectDataToPeer(otherId);
-                        }
-                    });
-                }
-                return;
-            }
-
-            if (message.type === 'new-peer-announced' && message.id !== myId) {
-                const newPeerId = message.id;
-                if (typeof message.joinedAt === 'number') {
-                    peerJoinTimestamps[newPeerId] = message.joinedAt;
-                }
-                userProfiles[newPeerId] = message.profile || peerProfile;
-                userStates[newPeerId] = message.state || { mic: true, deaf: false, adminMuted: false };
-                addUserCard(newPeerId, userProfiles[newPeerId], false);
-                electAndSyncSingleHost();
-                updateCachedRoomPeers();
-
-                if (!activeConnections[newPeerId] || !activeConnections[newPeerId].open) {
-                    connectDataToPeer(newPeerId);
-                } else {
-                    evaluateVoiceCall(newPeerId);
-                }
                 return;
             }
 
@@ -1608,19 +1511,21 @@
             }
         }
 
-        // ДЕТЕРМИНИРОВАННЫЙ ГОЛОСОВОЙ ЗВОНОК + РЕЗЕРВНЫЙ ВЫЗОВ ЧЕРЕЗ 2.2 СЕК
+        // ДЕТЕРМИНИРОВАННЫЙ ЗВОНОК (myId > remoteId) + ПОВТОРНЫЙ ЗВОНОК ЧЕРЕЗ 3 СЕКУНДЫ ЕСЛИ НЕТ АУДИОПОТОКА
         function evaluateVoiceCall(remoteId) {
-            if (!peer || !localStream || activeCalls[remoteId] || remoteId === myId) return;
-            if (shouldInitiateCall(myId, remoteId)) {
+            if (!peer || peer.destroyed || !localStream || remoteId === myId) return;
+
+            if (!activeCalls[remoteId] && shouldInitiateCall(myId, remoteId)) {
                 callVoicePeer(remoteId, false);
-            } else {
-                // Если второй пир не позвонил за 2.2 секунды — инициируем вызов сами
-                setTimeout(() => {
-                    if (peer && !peer.destroyed && localStream && !activeCalls[remoteId] && activeConnections[remoteId]?.open) {
-                        callVoicePeer(remoteId, false);
-                    }
-                }, 2200);
             }
+
+            // Гарантия аудиопотока: если через 3 секунды после handshake нет аудиопотока — инициируется повторный звонок
+            setTimeout(() => {
+                if (!peer || peer.destroyed || !localStream || remoteId === myId) return;
+                if (activeConnections[remoteId]?.open && !remoteStreams[remoteId]) {
+                    callVoicePeer(remoteId, true);
+                }
+            }, 3000);
         }
 
         function attachPeerConnectionMonitors(pc, remoteId) {
@@ -1648,8 +1553,14 @@
         }
 
         function callVoicePeer(remoteId, forceCall) {
-            if (!peer || !localStream || remoteId === myId) return;
+            if (!peer || peer.destroyed || !localStream || remoteId === myId) return;
             if (activeCalls[remoteId] && !forceCall) return;
+
+            if (activeCalls[remoteId] && forceCall) {
+                try { activeCalls[remoteId].close(); } catch (e) {}
+                delete activeCalls[remoteId];
+            }
+
             try {
                 const call = peer.call(remoteId, localStream);
                 if (call) {
@@ -1658,6 +1569,7 @@
                         attachPeerConnectionMonitors(call.peerConnection, remoteId);
                     }
                     call.on('stream', (stream) => {
+                        remoteStreams[remoteId] = stream;
                         attachRemoteAudio(remoteId, stream);
                         if (peerHealth[remoteId]) peerHealth[remoteId].lastSeen = Date.now();
                         updateNetQualityDOM(remoteId, 'good', peerHealth[remoteId]?.rtt || 30);
@@ -1665,13 +1577,14 @@
                     call.on('close', () => {
                         if (activeCalls[remoteId] === call) {
                             delete activeCalls[remoteId];
+                            delete remoteStreams[remoteId];
                         }
                     });
                     call.on('error', () => {
                         if (activeCalls[remoteId] === call) {
                             delete activeCalls[remoteId];
+                            delete remoteStreams[remoteId];
                         }
-                        setTimeout(() => triggerSoftPeerReconnect(remoteId), 2000);
                     });
                 }
             } catch(e) {
@@ -1691,6 +1604,7 @@
                     attachPeerConnectionMonitors(call.peerConnection, call.peer);
                 }
                 call.on('stream', (remoteStream) => {
+                    remoteStreams[call.peer] = remoteStream;
                     attachRemoteAudio(call.peer, remoteStream);
                     if (peerHealth[call.peer]) peerHealth[call.peer].lastSeen = Date.now();
                     updateNetQualityDOM(call.peer, 'good', peerHealth[call.peer]?.rtt || 30);
@@ -1698,11 +1612,13 @@
                 call.on('close', () => {
                     if (activeCalls[call.peer] === call) {
                         delete activeCalls[call.peer];
+                        delete remoteStreams[call.peer];
                     }
                 });
                 call.on('error', () => {
                     if (activeCalls[call.peer] === call) {
                         delete activeCalls[call.peer];
+                        delete remoteStreams[call.peer];
                     }
                 });
             });
@@ -1717,25 +1633,30 @@
             });
 
             peer.on('error', (err) => {
-                // Игнорируем штатную ошибку peer-unavailable при опросе пустых слотов комнаты
+                // Штатный ответ при сканировании свободных слотов s1..s8 радаром
                 if (err && err.type === 'peer-unavailable') return;
                 console.warn('Peer notice:', err.type);
             });
         }
 
-        // ЗАЩИЩЕННОЕ ОТ ДУБЛИКАТОВ ПОДКЛЮЧЕНИЕ DATACHANNEL
-        function connectDataToPeer(remoteId) {
-            if (!peer || peer.destroyed || !remoteId || remoteId === myId) return;
-            const existing = activeConnections[remoteId];
+        // ПОДКЛЮЧЕНИЕ К СЛОТУ С ЗАЩИТОЙ ОТ ДУБЛИРУЮЩИХ ПОПЫТОК ВО ВРЕМЯ CONNECTING (ТАЙМАУТ 4 СЕКУНДЫ)
+        function connectDataToPeer(targetId) {
+            if (!peer || peer.destroyed || !targetId || targetId === myId) return;
+            const existing = activeConnections[targetId];
             if (existing && existing.open) return;
 
-            // Не перебиваем соединение, которое прямо сейчас проходит ICE-рукопожатие (до 6.5 сек)
-            const lastAttempt = connectionAttemptTs[remoteId] || 0;
-            if (existing && (Date.now() - lastAttempt < 6500)) return;
+            const now = Date.now();
+            const lastAttempt = connectionAttemptTs[targetId] || 0;
+            if (now - lastAttempt < CONNECT_ATTEMPT_TIMEOUT_MS) return;
+
+            if (existing && !existing.open) {
+                try { existing.close(); } catch (e) {}
+                delete activeConnections[targetId];
+            }
 
             try {
-                connectionAttemptTs[remoteId] = Date.now();
-                const conn = peer.connect(remoteId, { reliable: true });
+                connectionAttemptTs[targetId] = now;
+                const conn = peer.connect(targetId, { reliable: true });
                 setupDataConnection(conn);
             } catch (e) {}
         }
@@ -1744,37 +1665,26 @@
             if (!conn || !conn.peer) return;
             const remoteId = conn.peer;
 
-            // Сохраняем ссылку, только если еще нет уже открытого канала
             if (!activeConnections[remoteId] || !activeConnections[remoteId].open) {
                 activeConnections[remoteId] = conn;
-            }
-
-            if (!peerHealth[remoteId]) {
-                peerHealth[remoteId] = { lastSeen: Date.now(), rtt: 35, quality: 'good', reconnecting: false };
             }
 
             conn.on('open', () => {
                 activeConnections[remoteId] = conn;
                 connectionAttemptTs[remoteId] = Date.now();
-                peerHealth[remoteId].lastSeen = Date.now();
-                updateCachedRoomPeers();
+                if (!peerHealth[remoteId]) {
+                    peerHealth[remoteId] = { lastSeen: Date.now(), rtt: 35, quality: 'good', reconnecting: false };
+                } else {
+                    peerHealth[remoteId].lastSeen = Date.now();
+                }
 
                 if (conn.peerConnection) {
                     attachPeerConnectionMonitors(conn.peerConnection, remoteId);
                 }
 
-                // Отправляем сигнал join при открытии канала с любым пиром
+                // Как только DataConnection между двумя слотами открывается, обмениваемся пакетом handshake
                 try {
-                    conn.send({
-                        type: 'join',
-                        id: myId,
-                        slotIndex: mySlotIndex,
-                        joinedAt: myJoinedAt,
-                        hostId: currentHostId,
-                        profile: myProfile,
-                        state: userStates[myId],
-                        peerList: getKnownPeerList()
-                    });
+                    conn.send(buildHandshakePacket('handshake'));
                 } catch (e) {}
 
                 evaluateVoiceCall(remoteId);
@@ -1788,12 +1698,9 @@
                 if (activeConnections[remoteId] === conn) {
                     delete activeConnections[remoteId];
                     delete connectionAttemptTs[remoteId];
-                    updateNetQualityDOM(remoteId, 'bad', 999);
-                    setTimeout(() => {
-                        if (userProfiles[remoteId] && (!activeConnections[remoteId] || !activeConnections[remoteId].open)) {
-                            triggerSoftPeerReconnect(remoteId);
-                        }
-                    }, 1500);
+                    if (userProfiles[remoteId]) {
+                        updateNetQualityDOM(remoteId, 'bad', 999);
+                    }
                 }
             });
 
@@ -1810,6 +1717,7 @@
                 try { activeCalls[peerId].close(); } catch(e) {}
                 delete activeCalls[peerId];
             }
+            delete remoteStreams[peerId];
             const a = document.getElementById(`audio-${peerId}`);
             if (a) a.remove();
             if (remoteAudioAnalysers[peerId]) {
@@ -1828,8 +1736,7 @@
             delete userProfiles[peerId];
             delete userStates[peerId];
             removeUserCard(peerId);
-            updateCachedRoomPeers();
-            electAndSyncSingleHost();
+            recalculateRoomAdmin();
         }
 
         function attachRemoteAudio(peerId, remoteStream) {
@@ -1937,18 +1844,21 @@
             }
         }
 
-        // 1. ЖЕЛЕЗОБЕТОННАЯ MESH-СИНХРОНИЗАЦИЯ КОМНАТЫ ЧЕРЕЗ ПРЕДСКАЗУЕМЫЕ СЛОТЫ (${activeRoom}_0 ... ${activeRoom}_5)
+        // 1. ЗАНЯТИЕ СВОБОДНОГО СЛОТА (${activeRoom}_s1 ... ${activeRoom}_s8) И ЗАПУСК РАДАРА
         function startPeerConnection() {
             if (peer) {
                 try { peer.destroy(); } catch (e) {}
                 peer = null;
             }
 
-            // Попытка последовательно занять свободный слот 0..5 в пуле комнаты
-            const tryAcquireSlot = (slotIdx) => {
-                const candidateId = slotIdx < MAX_ROOM_SLOTS
-                    ? getSlotPeerId(slotIdx)
-                    : `${activeRoom}_${Math.random().toString(36).substring(2, 7)}`;
+            // Проверяем, сохранен ли уже создатель этой комнаты в localStorage
+            const storedCreator = localStorage.getItem('voiceup_creator_' + activeRoom);
+            roomCreatorDeviceId = storedCreator || "";
+
+            const tryAcquireSlot = (slotNum) => {
+                const candidateId = slotNum <= MAX_ROOM_SLOTS
+                    ? getSlotPeerId(slotNum)
+                    : `${activeRoom}_s${slotNum}_${Math.random().toString(36).substring(2, 5)}`;
 
                 const candidatePeer = new Peer(candidateId, PEER_CONFIG);
                 let settled = false;
@@ -1957,7 +1867,7 @@
                     if (!settled) {
                         settled = true;
                         try { candidatePeer.destroy(); } catch (e) {}
-                        tryAcquireSlot(slotIdx + 1);
+                        tryAcquireSlot(slotNum + 1);
                     }
                 }, 3500);
 
@@ -1968,62 +1878,65 @@
 
                     peer = candidatePeer;
                     myId = assignedId;
-                    mySlotIndex = slotIdx;
-                    // Если мы заняли слот > 0, в комнате гарантированно уже есть создатель (слот 0),
-                    // поэтому наш joinedAt заведомо позже, а начальный статус — "гость"!
-                    myJoinedAt = Date.now() + (slotIdx > 0 ? slotIdx * 10 : 0);
-                    peerJoinTimestamps[myId] = myJoinedAt;
+                    mySlotNumber = slotNum;
+                    myJoinTimestamp = Date.now();
+                    peerJoinTimestamps[myId] = myJoinTimestamp;
 
-                    if (slotIdx === 0) {
-                        currentHostId = myId;
-                        isRoomHost = true;
-                        myProfile.isAdmin = true;
-                    } else {
-                        currentHostId = getSlotPeerId(0);
-                        isRoomHost = false;
-                        myProfile.isAdmin = false;
+                    // Если мы заняли первый слот s1 и у комнаты еще нет записанного создателя —
+                    // предварительно назначаем себя создателем (если в других слотах уже есть старожилы, handshake синхронизирует их создателя)
+                    if (slotNum === 1 && !roomCreatorDeviceId) {
+                        roomCreatorDeviceId = myProfile.deviceId;
+                        localStorage.setItem('voiceup_creator_' + activeRoom, roomCreatorDeviceId);
                     }
 
                     peerHealth[myId] = { lastSeen: Date.now(), rtt: 0, quality: 'good', reconnecting: false };
                     userStates[myId] = { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted };
 
-                    updateRoomHeaderUI();
                     addUserCard(myId, myProfile, true);
+                    recalculateRoomAdmin();
                     bindPeerEvents();
                     startLocalSpeakingDetector();
                     startSessionTimer();
-                    startHeartbeatLoop();
-                    startMeshDiscoveryLoop();
+                    startRadarLoop();
+
+                    // Если мы зашли на слот s2..s8, потому что s1 завис на сервере PeerJS, и через 3 сек в комнате больше никого нет —
+                    // фиксируем себя создателем пустой комнаты
+                    setTimeout(() => {
+                        const otherPeersCount = Object.keys(userProfiles).filter(id => id !== myId).length;
+                        if (otherPeersCount === 0 && !roomCreatorDeviceId) {
+                            roomCreatorDeviceId = myProfile.deviceId;
+                            localStorage.setItem('voiceup_creator_' + activeRoom, roomCreatorDeviceId);
+                            recalculateRoomAdmin();
+                        }
+                    }, 3000);
                 });
 
-                candidatePeer.on('error', (err) => {
+                candidatePeer.on('error', () => {
                     if (settled) return;
                     settled = true;
                     clearTimeout(slotTimeout);
                     try { candidatePeer.destroy(); } catch (e) {}
-                    // Если слот занят (unavailable-id) — мгновенно переходим к следующему слоту
-                    tryAcquireSlot(slotIdx + 1);
+                    // Если слот занят (unavailable-id), мгновенно пробуем следующий слот s2..s8
+                    tryAcquireSlot(slotNum + 1);
                 });
             };
 
-            tryAcquireSlot(0);
+            tryAcquireSlot(1);
         }
 
-        // Авто-восстановление при возвращении вкладки из фона на смартфонах (Telegram / Safari)
+        // Авто-восстановление при возвращении мобильного браузера из фона
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && peer && myId) {
-                if (peer.disconnected && !peer.destroyed) {
-                    try { peer.reconnect(); } catch (e) {}
-                }
-                scanRoomSlotsForPeers();
+                runRadarCycle();
             }
         });
 
+        // 4. ГРОМКИЕ И ЧЕТКИЕ ДВУХТОНАЛЬНЫЕ ЗВУКИ УВЕДОМЛЕНИЙ В СТИЛЕ DISCORD (GAIN = 0.38)
         function playUiSound(action) {
             try {
                 if (audioCtx.state === 'suspended') audioCtx.resume();
                 const now = audioCtx.currentTime;
-                function playTone(type, freq, tStart, tDuration, sweepFreq = null) {
+                function playTone(type, freq, tStart, tDuration, sweepFreq = null, peakGain = 0.38) {
                     const osc = audioCtx.createOscillator(); 
                     const gainNode = audioCtx.createGain();
                     osc.connect(gainNode); 
@@ -2031,20 +1944,34 @@
                     osc.type = type; 
                     osc.frequency.setValueAtTime(freq, tStart);
                     if (sweepFreq) osc.frequency.exponentialRampToValueAtTime(sweepFreq, tStart + tDuration);
-                    gainNode.gain.setValueAtTime(0, tStart); 
-                    gainNode.gain.linearRampToValueAtTime(0.04, tStart + 0.02);
-                    gainNode.gain.exponentialRampToValueAtTime(0.001, tStart + tDuration - 0.01); 
-                    gainNode.gain.setValueAtTime(0, tStart + tDuration);
+                    gainNode.gain.setValueAtTime(0.001, tStart); 
+                    gainNode.gain.linearRampToValueAtTime(peakGain, tStart + 0.015);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, tStart + tDuration); 
                     osc.start(tStart); 
-                    osc.stop(tStart + tDuration);
+                    osc.stop(tStart + tDuration + 0.01);
                 }
-                if (action === 'mic_on') playTone('sine', 400, now, 0.15, 800); 
-                else if (action === 'mic_off') playTone('sine', 800, now, 0.15, 400); 
-                else if (action === 'deafen_off') playTone('triangle', 150, now, 0.15, 300); 
-                else if (action === 'deafen_on') playTone('triangle', 300, now, 0.15, 150); 
-                else if (action === 'join') { playTone('sine', 523.25, now, 0.15); playTone('sine', 659.25, now + 0.15, 0.3); } 
-                else if (action === 'leave') { playTone('triangle', 349.23, now, 0.12); playTone('triangle', 261.63, now + 0.14, 0.2); } 
-                else if (action === 'chat_msg') { playTone('sine', 600, now, 0.05, 800); playTone('sine', 600, now + 0.06, 0.05, 800); }
+                if (action === 'mic_on') {
+                    playTone('sine', 440, now, 0.07);
+                    playTone('sine', 660, now + 0.065, 0.11);
+                } else if (action === 'mic_off') {
+                    playTone('sine', 620, now, 0.07);
+                    playTone('sine', 390, now + 0.065, 0.12);
+                } else if (action === 'deafen_off') {
+                    playTone('triangle', 380, now, 0.08);
+                    playTone('sine', 587.33, now + 0.075, 0.12);
+                } else if (action === 'deafen_on') {
+                    playTone('triangle', 520, now, 0.08);
+                    playTone('triangle', 293.66, now + 0.075, 0.14);
+                } else if (action === 'join') {
+                    playTone('sine', 523.25, now, 0.09);
+                    playTone('sine', 659.25, now + 0.085, 0.16);
+                } else if (action === 'leave') {
+                    playTone('sine', 493.88, now, 0.09);
+                    playTone('sine', 329.63, now + 0.085, 0.16);
+                } else if (action === 'chat_msg') {
+                    playTone('sine', 587.33, now, 0.05, 783.99);
+                    playTone('sine', 880, now + 0.055, 0.08);
+                }
             } catch(e) {}
         }
 
@@ -2131,8 +2058,8 @@
             document.querySelectorAll('.user-card').forEach(card => { 
                 const id = card.id.replace('card-', ''); 
                 const isMe = id === myId; 
-                const isThisPeerHost = (id === currentHostId);
-                const adminBadge = isThisPeerHost ? svgAdmin : ''; 
+                const isThisPeerAdmin = Boolean(currentAdminPeerId && id === currentAdminPeerId);
+                const adminBadge = isThisPeerAdmin ? svgAdmin : ''; 
                 card.querySelector('.is-me-badge').innerHTML = (isMe ? dict[lang].you : '') + (adminBadge ? ' ' + adminBadge : ''); 
             });
             document.querySelectorAll('.trans-local-sound').forEach(el => el.innerText = dict[lang].localSound); 
@@ -2289,7 +2216,7 @@
         };
 
         window.sendAdminAction = (action, targetId) => {
-            if (!isRoomHost) return; 
+            if (!myProfile.isAdmin) return; 
             const targetDeviceId = userProfiles[targetId]?.deviceId || 'unknown';
             if (action === 'kick') { 
                 bannedDevices[targetDeviceId] = true; 
@@ -2353,8 +2280,7 @@
         };
 
         function leaveRoom() { 
-            if (heartbeatTimer) clearInterval(heartbeatTimer);
-            if (meshScanTimer) clearInterval(meshScanTimer);
+            if (radarTimer) clearInterval(radarTimer);
             stopSessionTimer();
             broadcastSignaling({ type: 'leave', id: myId });
             if (localStream) localStream.getTracks().forEach(track => track.stop()); 
@@ -2445,7 +2371,7 @@
         });
 
         function addUserCard(id, profile, isMe) {
-            // Защита от дублирования карточек одного и того же физического устройства при переподключении
+            // Защита от дублирования карточек одного и того же физического устройства при переподключении на новый слот
             Object.keys(userProfiles).forEach(existingId => {
                 if (existingId !== id && existingId !== myId && userProfiles[existingId]?.deviceId && userProfiles[existingId]?.deviceId === profile.deviceId) {
                     cleanupPeer(existingId);
@@ -2459,7 +2385,7 @@
             if(!peerHealth[id]) peerHealth[id] = { lastSeen: Date.now(), rtt: 30, quality: 'good', reconnecting: false };
             
             updateCardVisuals(id, profile, isMe); 
-            if (isNew && !isMe) setTimeout(() => playUiSound('join'), 400);
+            if (isNew && !isMe) setTimeout(() => playUiSound('join'), 300);
         }
 
         function updateCardVisuals(id, profile, isMe) {
@@ -2524,9 +2450,9 @@
             card.querySelector('.device-dot-container').innerHTML = getStatusDotHtml(deviceType);
             card.querySelector('.net-quality-container').innerHTML = getNetQualityHtml(id);
 
-            // Щит админа строго у ЕДИНСТВЕННОГО создателя комнаты (id === currentHostId)
-            const isThisPeerHost = Boolean(currentHostId && id === currentHostId);
-            const adminBadge = isThisPeerHost ? svgAdmin : ''; 
+            // Щит/корона админа строго у одного выбранного админа (currentAdminPeerId)
+            const isThisPeerAdmin = Boolean(currentAdminPeerId && id === currentAdminPeerId);
+            const adminBadge = isThisPeerAdmin ? svgAdmin : ''; 
             card.querySelector('.is-me-badge').innerHTML = (isMe ? dict[currentLang].you : '') + (adminBadge ? ' ' + adminBadge : ''); 
             card.querySelector('.status-text').innerText = dict[currentLang].online;
             
@@ -2541,7 +2467,7 @@
                 card.querySelector('.loc-mute-btn').className = `loc-mute-btn ${locSet.muted ? 'muted' : ''}`;
                 
                 const adminControls = card.querySelector('.admin-controls');
-                if (isRoomHost) {
+                if (myProfile.isAdmin) {
                     adminControls.style.display = 'flex'; 
                     const adminMuteBtn = card.querySelector('.admin-mute-btn'); 
                     if (adminMuteBtn) adminMuteBtn.innerText = state.adminMuted ? dict[currentLang].unmuteMic : dict[currentLang].muteMic; 
@@ -2590,7 +2516,7 @@
             if (notif) notif.remove(); 
         };
 
-        // ВХОД В КОМНАТУ
+        // 5. ВХОД В КОМНАТУ (СОХРАНЕНИЕ ВВЕДЕННОГО ИЛИ URL-КОДА КОМНАТЫ БЕЗ ПЕРЕЗАПИСИ СЛУЧАЙНЫМ)
         elBtn.onclick = async () => {
             if (localStorage.getItem('voiceup_banned') === 'true') { 
                 return showBannedScreen(); 
@@ -2602,13 +2528,17 @@
             myProfile.isAdmin = false;
             saveMyProfileToStorage();
 
-            let customRoom = roomCodeInput.value.trim();
-            if (customRoom) {
-                activeRoom = sanitizeRoomName(customRoom);
-            }
-            if (!activeRoom) {
+            const manualRoom = sanitizeRoomName(roomCodeInput.value.trim());
+            const urlRoomParam = sanitizeRoomName(new URLSearchParams(window.location.search).get('room') || window.location.hash.replace('#', '').trim());
+
+            if (manualRoom) {
+                activeRoom = manualRoom;
+            } else if (urlRoomParam) {
+                activeRoom = urlRoomParam;
+            } else if (!activeRoom) {
                 activeRoom = generateUniqueRoomId();
             }
+
             roomCodeInput.value = activeRoom;
             window.history.replaceState(null, '', window.location.pathname + '?room=' + activeRoom);
             
