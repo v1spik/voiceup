@@ -91,10 +91,12 @@
             font-size: 11px;
             cursor: pointer;
             transition: 0.2s;
+            text-transform: lowercase;
         }
         .header-btn:hover { color: var(--text-main); border-color: #555; background: var(--button-hover); }
         .header-btn svg { width: 12px; height: 12px; }
         .header-btn.active { color: var(--success); border-color: rgba(80, 250, 123, 0.4); }
+        .header-btn.admin-ban-btn:hover { color: var(--danger); border-color: rgba(255, 85, 85, 0.5); }
 
         #room-screen { 
             flex: 1; 
@@ -375,13 +377,64 @@
         
         #chat-badge { position: absolute; top: -2px; right: -2px; width: 9px; height: 9px; background-color: var(--danger); border-radius: 50%; display: none; box-shadow: 0 0 0 2px var(--bg-secondary); }
 
-        /* QR Код модалка */
-        #qr-modal { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px); display: none; justify-content: center; align-items: center; z-index: 500; }
-        .qr-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 22px; display: flex; flex-direction: column; align-items: center; gap: 14px; box-shadow: 0 16px 40px rgba(0,0,0,0.8); position: relative; max-width: 280px; width: 90vw; }
+        /* QR Код модалка и Модалка списка банов */
+        #qr-modal, #banlist-modal { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px); display: none; justify-content: center; align-items: center; z-index: 500; }
+        .qr-card, .banlist-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 22px; display: flex; flex-direction: column; align-items: center; gap: 14px; box-shadow: 0 16px 40px rgba(0,0,0,0.8); position: relative; max-width: 310px; width: 90vw; }
         .qr-close-btn { position: absolute; top: 8px; right: 10px; background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; line-height: 1; }
         .qr-close-btn:hover { color: var(--text-main); }
         .qr-box { background: #ffffff; padding: 10px; border-radius: 8px; display: flex; justify-content: center; align-items: center; }
         .qr-room-text { font-size: 13px; color: var(--text-muted); text-transform: lowercase; }
+
+        /* Список забаненных внутри #banlist-modal */
+        .banlist-items {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .banlist-empty {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 14px 0;
+            text-transform: lowercase;
+        }
+        .banlist-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--button-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 10px;
+            gap: 8px;
+        }
+        .banlist-nick {
+            font-size: 12px;
+            color: var(--text-main);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-transform: lowercase;
+        }
+        .unban-btn {
+            background: transparent;
+            border: 1px solid rgba(80, 250, 123, 0.35);
+            color: var(--success);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: 0.2s;
+            text-transform: lowercase;
+            flex-shrink: 0;
+        }
+        .unban-btn:hover {
+            background: rgba(80, 250, 123, 0.12);
+            border-color: var(--success);
+        }
 
         /* Модалка профиля */
         #profile-modal { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 300; }
@@ -415,7 +468,8 @@
         #chat-send { background: var(--button-bg); border: 1px solid var(--border-color); color: var(--text-main); width: 38px; height: 38px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         #chat-send svg { width: 16px; height: 16px; }
         
-        #banned-screen { position: absolute; inset: 0; background: var(--bg); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; padding: 20px; }
+        #banned-screen { position: absolute; inset: 0; background: var(--bg); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; padding: 20px; gap: 10px; }
+        .banned-actions { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 240px; }
         #admin-notifications { position: absolute; top: 70px; right: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 2000; }
         .appeal-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.8); width: 260px; text-align: left; }
         
@@ -482,7 +536,7 @@
             }
             .user-card { width: 120px; height: 130px; }
             .avatar { width: 52px; height: 52px; font-size: 16px; }
-            #qr-modal .qr-card { width: 90vw; max-width: 290px; padding: 18px; }
+            #qr-modal .qr-card, #banlist-modal .banlist-card { width: 90vw; max-width: 290px; padding: 18px; }
             #join-screen { 
                 position: relative;
                 padding: 20px; 
@@ -530,6 +584,14 @@
             </svg>
             <span id="pin-btn-text" class="trans-pin">закрепить</span>
         </button>
+
+        <!-- Кнопка списка забаненных (видна только админу комнаты) -->
+        <button id="banlist-btn" class="header-btn admin-ban-btn" style="display: none;" title="Список забаненных в комнате">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <span id="banlist-btn-text">баны (0)</span>
+        </button>
     </div>
 
     <!-- Модалка QR-кода -->
@@ -539,6 +601,15 @@
             <div class="qr-room-text" id="qr-room-label">комната</div>
             <div class="qr-box" id="qrcode-container"></div>
             <button class="secondary-btn" id="qr-copy-btn" style="padding: 8px 0; font-size: 12px;">скопировать ссылку</button>
+        </div>
+    </div>
+
+    <!-- Модалка списка забаненных (#banlist-modal) -->
+    <div id="banlist-modal">
+        <div class="banlist-card">
+            <button class="qr-close-btn" id="banlist-close">×</button>
+            <div class="qr-room-text" id="banlist-title-label">забаненные в комнате</div>
+            <div class="banlist-items" id="banlist-items-container"></div>
         </div>
     </div>
 
@@ -584,9 +655,12 @@
 
     <!-- Экран бана -->
     <div id="banned-screen">
-        <h1 class="trans-banned-title" style="color: var(--danger); margin-bottom: 8px;">Доступ закрыт</h1>
-        <p class="trans-banned-desc" style="color: var(--text-muted); margin-bottom: 16px; font-size: 13px;">Вы были кикнуты из комнаты. Запросите доступ у администратора.</p>
-        <button id="appealBtn" class="primary-btn trans-req-access" style="max-width: 220px;">Запросить доступ</button>
+        <h1 class="trans-banned-title" style="color: var(--danger); margin-bottom: 4px;">Доступ закрыт</h1>
+        <p class="trans-banned-desc" style="color: var(--text-muted); margin-bottom: 12px; font-size: 13px;">Вы были кикнуты из этой комнаты. Запросите доступ у администратора или выберите другую комнату.</p>
+        <div class="banned-actions">
+            <button id="appealBtn" class="primary-btn trans-req-access">Запросить доступ</button>
+            <button id="backToMenuBtn" class="secondary-btn trans-back-menu">Выйти в меню</button>
+        </div>
     </div>
 
     <div id="admin-notifications"></div>
@@ -656,22 +730,44 @@
     <div id="webrtc-audio-container" style="display:none;"></div>
 
     <script>
+        // 1. ПРИНУДИТЕЛЬНЫЙ СБРОС СТАРОГО ГЛОБАЛЬНОГО БАНА У ВСЕХ ПОЛЬЗОВАТЕЛЕЙ ПРИ ЗАГРУЗКЕ
+        try {
+            localStorage.removeItem('voiceup_banned');
+        } catch (e) {}
+
         const MAX_PINNED_ROOMS = 5;
-        const MAX_ROOM_SLOTS = 8; // 8 фиксированных слотов: ${activeRoom}_s1 ... ${activeRoom}_s8
-        const RADAR_INTERVAL_MS = 2500; // Постоянный Радар каждые 2.5 секунды
-        const CONNECT_ATTEMPT_TIMEOUT_MS = 4000; // Таймаут попытки подключения 4 секунды
-        const PEER_STALE_TIMEOUT_MS = 9000;
+        const HEARTBEAT_INTERVAL_MS = 4000; // Keep-Alive каждые 4 секунды
+        const GUEST_RETRY_INTERVAL_MS = 3000; // Повторный стук Гостя к Хосту каждые 3 секунды
+        const PEER_STALE_TIMEOUT_MS = 10000;
         const PEER_DEAD_TIMEOUT_MS = 22000;
 
-        // 3. ЧИСТЫЙ И БЫСТРЫЙ PEER_CONFIG (ТОЛЬКО ПРОВЕРЕННЫЕ STUN GOOGLE И CLOUDFLARE БЕЗ МЕРТВЫХ TURN)
+        // 3. НАДЕЖНЫЙ PEER_CONFIG (STUN GOOGLE + CLOUDFLARE + РЕЗЕРВНЫЕ TURN ДЛЯ ПРОБИТИЯ РАЗНЫХ СЕТЕЙ И МОБИЛЬНОГО ИНТЕРНЕТА)
         const PEER_CONFIG = {
             config: {
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
                     { urls: 'stun:stun1.l.google.com:19302' },
                     { urls: 'stun:stun2.l.google.com:19302' },
-                    { urls: 'stun:stun.cloudflare.com:3478' }
-                ]
+                    { urls: 'stun:stun3.l.google.com:19302' },
+                    { urls: 'stun:stun4.l.google.com:19302' },
+                    { urls: 'stun:stun.cloudflare.com:3478' },
+                    {
+                        urls: 'turn:openrelay.metered.ca:80',
+                        username: 'openrelayproject',
+                        credential: 'openrelayproject'
+                    },
+                    {
+                        urls: 'turn:openrelay.metered.ca:443',
+                        username: 'openrelayproject',
+                        credential: 'openrelayproject'
+                    },
+                    {
+                        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                        username: 'openrelayproject',
+                        credential: 'openrelayproject'
+                    }
+                ],
+                iceCandidatePoolSize: 10
             },
             pingInterval: 5000
         };
@@ -702,6 +798,11 @@
                 pinnedActive: "закреплена",
                 roomPinned: "комната закреплена!",
                 roomUnpinned: "комната откреплена",
+                bansBtn: "баны",
+                banlistTitle: "забаненные в комнате",
+                banlistEmpty: "список забаненных пуст",
+                unbanBtn: "разбанить",
+                unbannedToast: "пользователь разбанен",
                 chatTitle: "чат", 
                 chatInput: "сообщение...", 
                 fileTooBig: "файл слишком большой (макс 5 МБ)", 
@@ -714,9 +815,10 @@
                 kick: "кикнуть", 
                 adminMutedAlert: "админ запретил вам говорить!", 
                 bannedTitle: "Доступ закрыт", 
-                bannedDesc: "Вы были кикнуты из комнаты. Запросите доступ у администратора.", 
+                bannedDesc: "Вы были кикнуты из этой комнаты. Запросите доступ у администратора или выберите другую комнату.", 
                 reqAccess: "Запросить доступ", 
                 reqSent: "Запрос отправлен...", 
+                backMenu: "Выйти в меню",
                 adminAllowed: "Админ одобрил ваш запрос!", 
                 wantsToJoin: "просит доступ в комнату", 
                 letIn: "Пустить", 
@@ -747,6 +849,11 @@
                 pinnedActive: "pinned",
                 roomPinned: "room pinned!",
                 roomUnpinned: "room unpinned",
+                bansBtn: "bans",
+                banlistTitle: "banned in room",
+                banlistEmpty: "ban list is empty",
+                unbanBtn: "unban",
+                unbannedToast: "user unbanned",
                 chatTitle: "chat", 
                 chatInput: "message...", 
                 fileTooBig: "file too large (max 5 MB)", 
@@ -759,9 +866,10 @@
                 kick: "kick", 
                 adminMutedAlert: "admin disabled your mic!", 
                 bannedTitle: "Access Denied", 
-                bannedDesc: "You have been kicked. Request access from the administrator.", 
+                bannedDesc: "You have been kicked from this room. Request access from the administrator or choose another room.", 
                 reqAccess: "Request Access", 
                 reqSent: "Request Sent...", 
+                backMenu: "Back to Menu",
                 adminAllowed: "Admin approved your request!", 
                 wantsToJoin: "requests room access", 
                 letIn: "Allow", 
@@ -846,7 +954,6 @@
             }
         }
 
-        // АВТОГЕНЕРАЦИЯ УНИКАЛЬНЫХ ИМЕН КОМНАТ (ТОЛЬКО ЕСЛИ ПОЛЕ И URL ПУСТЫЕ)
         function generateUniqueRoomId() {
             const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
             const block = () => {
@@ -867,6 +974,8 @@
         let activeRoom = urlParams.get('room') || window.location.hash.replace('#', '').trim();
         if (activeRoom) {
             activeRoom = sanitizeRoomName(activeRoom);
+        } else {
+            activeRoom = generateUniqueRoomId();
         }
 
         const roomCodeInput = document.getElementById('roomCodeInput');
@@ -878,6 +987,12 @@
         const copyBtnText = document.getElementById('copy-btn-text');
         const pinRoomBtn = document.getElementById('pin-room-btn');
         const pinBtnText = document.getElementById('pin-btn-text');
+        const banlistBtn = document.getElementById('banlist-btn');
+        const banlistBtnText = document.getElementById('banlist-btn-text');
+        const banlistModal = document.getElementById('banlist-modal');
+        const banlistClose = document.getElementById('banlist-close');
+        const banlistTitleLabel = document.getElementById('banlist-title-label');
+        const banlistItemsContainer = document.getElementById('banlist-items-container');
         const qrBtn = document.getElementById('qr-btn');
         const qrModal = document.getElementById('qr-modal');
         const qrClose = document.getElementById('qr-close');
@@ -889,9 +1004,7 @@
         const pinnedCounterText = document.getElementById('pinned-counter-text');
         const pinnedRoomsList = document.getElementById('pinned-rooms-list');
 
-        if (activeRoom) {
-            roomCodeInput.value = activeRoom;
-        }
+        roomCodeInput.value = activeRoom;
 
         // ТАЙМЕР ДЛИТЕЛЬНОСТИ СЕССИИ (00:00 / 00:00:00)
         let sessionStartTime = 0;
@@ -972,24 +1085,122 @@
             }
         }
 
-        // СОСТОЯНИЕ ПУЛА СЛОТОВ (${activeRoom}_s1 ... ${activeRoom}_s8) И НАСТОЯЩЕГО СОЗДАТЕЛЯ
+        // СОСТОЯНИЕ СЕТИ: СХЕМА ${activeRoom}_host + ${activeRoom}_guest_${rand}
         let myId = "";
-        let mySlotNumber = 1;
-        let myJoinTimestamp = 0;
+        let hostPeerId = "";
+        let isRoomHost = false;
+        let isPromotingToHost = false;
         let roomCreatorDeviceId = "";
         let currentAdminPeerId = "";
         let qrCodeInstance = null;
-        let radarTimer = null;
+        let heartbeatTimer = null;
+        let guestRetryTimer = null;
+        let appealCheckTimer = null;
 
-        function getSlotPeerId(slotNum) {
-            return `${activeRoom}_s${slotNum}`;
+        // ХРАНЕНИЕ БАНОВ СТРОГО ДЛЯ ТЕКУЩЕЙ КОМНАТЫ (activeRoom)
+        function loadRoomBannedDevices(roomName) {
+            try {
+                const raw = JSON.parse(localStorage.getItem('voiceup_banned_devices_' + roomName)) || {};
+                const normalized = {};
+                Object.keys(raw).forEach(devId => {
+                    if (raw[devId] && typeof raw[devId] === 'object') {
+                        normalized[devId] = {
+                            nick: raw[devId].nick || dict[currentLang].guest,
+                            deviceId: devId,
+                            timestamp: raw[devId].timestamp || Date.now()
+                        };
+                    } else if (raw[devId]) {
+                        normalized[devId] = {
+                            nick: devId,
+                            deviceId: devId,
+                            timestamp: Date.now()
+                        };
+                    }
+                });
+                return normalized;
+            } catch (e) {
+                return {};
+            }
         }
 
-        function parseSlotNumber(peerId) {
-            if (!peerId) return 999;
-            const match = peerId.match(/_s(\d+)$/);
-            return match ? parseInt(match[1], 10) : 999;
+        function saveRoomBannedDevices(roomName, mapObj) {
+            try {
+                localStorage.setItem('voiceup_banned_devices_' + roomName, JSON.stringify(mapObj || {}));
+            } catch (e) {}
+            updateBanlistUI();
         }
+
+        function isClientBannedInRoom(roomName) {
+            return localStorage.getItem('voiceup_banned_' + roomName) === 'true';
+        }
+
+        function setClientBannedInRoom(roomName, isBanned) {
+            if (isBanned) {
+                localStorage.setItem('voiceup_banned_' + roomName, 'true');
+            } else {
+                localStorage.removeItem('voiceup_banned_' + roomName);
+            }
+        }
+
+        let bannedDevices = loadRoomBannedDevices(activeRoom);
+        let ignoredAppeals = {};
+        const pendingAppealPeers = {}; // deviceId -> peerId ожидающего на экране бана
+
+        function updateBanlistUI() {
+            bannedDevices = loadRoomBannedDevices(activeRoom);
+            const banKeys = Object.keys(bannedDevices);
+            const count = banKeys.length;
+
+            if (myProfile && myProfile.isAdmin) {
+                banlistBtn.style.display = 'flex';
+                banlistBtnText.innerText = `${dict[currentLang].bansBtn} (${count})`;
+            } else {
+                banlistBtn.style.display = 'none';
+            }
+
+            banlistTitleLabel.innerText = `${dict[currentLang].banlistTitle} #${activeRoom}`;
+            banlistItemsContainer.innerHTML = '';
+
+            if (count === 0) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'banlist-empty';
+                emptyDiv.innerText = dict[currentLang].banlistEmpty;
+                banlistItemsContainer.appendChild(emptyDiv);
+                return;
+            }
+
+            banKeys.sort((a, b) => (bannedDevices[b].timestamp || 0) - (bannedDevices[a].timestamp || 0)).forEach(devId => {
+                const entry = bannedDevices[devId];
+                const row = document.createElement('div');
+                row.className = 'banlist-row';
+                row.innerHTML = `
+                    <span class="banlist-nick" title="${escapeHTML(devId)}">${escapeHTML(entry.nick || devId)}</span>
+                    <button class="unban-btn">${dict[currentLang].unbanBtn}</button>
+                `;
+                row.querySelector('.unban-btn').onclick = () => {
+                    unbanDeviceInRoom(devId);
+                };
+                banlistItemsContainer.appendChild(row);
+            });
+        }
+
+        window.unbanDeviceInRoom = (deviceId) => {
+            bannedDevices = loadRoomBannedDevices(activeRoom);
+            delete bannedDevices[deviceId];
+            delete ignoredAppeals[deviceId];
+            saveRoomBannedDevices(activeRoom, bannedDevices);
+
+            const notif = document.getElementById(`appeal-${deviceId}`);
+            if (notif) notif.remove();
+
+            const targetPeerId = pendingAppealPeers[deviceId];
+            if (targetPeerId) {
+                sendToPeer(targetPeerId, { type: 'appeal_accepted', target: targetPeerId, deviceId: deviceId });
+                delete pendingAppealPeers[deviceId];
+            }
+            broadcastSignaling({ type: 'appeal_accepted', target: targetPeerId || '', deviceId: deviceId });
+            showToast(dict[currentLang].unbannedToast);
+        };
 
         function updateRoomHeaderUI() {
             roomHeaderName.innerText = activeRoom;
@@ -998,28 +1209,24 @@
             pinRoomBtn.classList.toggle('active', isPinned);
             pinBtnText.innerText = isPinned ? dict[currentLang].pinnedActive : dict[currentLang].pinBtn;
 
-            const amIAdmin = Boolean(myId && currentAdminPeerId === myId);
-            myProfile.isAdmin = amIAdmin;
-
-            if (amIAdmin) {
+            if (myProfile.isAdmin) {
                 roomRoleTag.className = 'role-badge host';
                 roomRoleTag.innerText = dict[currentLang].host;
             } else {
                 roomRoleTag.className = 'role-badge guest';
                 roomRoleTag.innerText = dict[currentLang].guest;
             }
+            updateBanlistUI();
         }
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         let peer = null;
         let localStream = null;
         const activeConnections = {};
-        const connectionAttemptTs = {};
         const activeCalls = {};
         const remoteStreams = {};
         const remoteAudioAnalysers = {};
         const peerHealth = {};
-        const peerJoinTimestamps = {};
         const reconnectLocks = {};
         let chatOpen = false;
 
@@ -1058,8 +1265,6 @@
         myProfile.deviceId = getDeviceId();
         myProfile.deviceType = myDeviceType;
 
-        let bannedDevices = JSON.parse(localStorage.getItem('voiceup_banned_devices')) || {};
-        let ignoredAppeals = JSON.parse(localStorage.getItem('voiceup_ignored_appeals')) || {};
         let micHotkey = localStorage.getItem('voiceup_hotkey') || null; 
         let deafenHotkey = localStorage.getItem('voiceup_deafen_hotkey') || null;
         
@@ -1072,68 +1277,56 @@
         let isAssigningMicHotkey = false; 
         let isAssigningDeafenHotkey = false;
 
-        // 2. СИСТЕМА "НАСТОЯЩИЙ СОЗДАТЕЛЬ" С АВТО-ВОЗВРАТОМ АДМИНКИ
+        // 2.3. АВТО-ВОЗВРАТ КОРОНЫ НАСТОЯЩЕМУ СОЗДАТЕЛЮ КОМНАТЫ (roomCreatorDeviceId)
         function recalculateRoomAdmin() {
             if (!myId) return;
 
             userProfiles[myId] = myProfile;
-            peerJoinTimestamps[myId] = myJoinTimestamp;
 
-            // Собираем всех живых онлайн участников комнаты (включая себя)
             const onlinePeers = [myId];
             Object.keys(userProfiles).forEach(pid => {
                 if (pid && pid !== myId) {
-                    const lastSeen = peerHealth[pid]?.lastSeen || 0;
-                    if (Date.now() - lastSeen <= PEER_DEAD_TIMEOUT_MS) {
-                        onlinePeers.push(pid);
-                    }
+                    onlinePeers.push(pid);
                 }
             });
 
-            // Если в комнате еще не определен создатель и мы единственные (или зашли первыми в пустую комнату)
             if (!roomCreatorDeviceId) {
-                const savedCreator = localStorage.getItem('voiceup_creator_' + activeRoom);
-                if (savedCreator) {
-                    roomCreatorDeviceId = savedCreator;
-                } else if (onlinePeers.length === 1 && mySlotNumber === 1) {
+                const storedCreator = localStorage.getItem('voiceup_creator_' + activeRoom);
+                if (storedCreator) {
+                    roomCreatorDeviceId = storedCreator;
+                } else if (isRoomHost && onlinePeers.length === 1) {
                     roomCreatorDeviceId = myProfile.deviceId;
                     localStorage.setItem('voiceup_creator_' + activeRoom, roomCreatorDeviceId);
                 }
             }
 
-            let electedAdminPeerId = "";
+            let electedAdminId = "";
 
-            // 1. Проверяем: есть ли среди присутствующих онлайн человек, чей profile.deviceId === roomCreatorDeviceId?
+            // 1) Если среди онлайн-участников присутствует настоящий создатель (roomCreatorDeviceId) — корона принадлежит ему!
             if (roomCreatorDeviceId) {
                 for (let i = 0; i < onlinePeers.length; i++) {
                     const pid = onlinePeers[i];
                     const prof = pid === myId ? myProfile : userProfiles[pid];
                     if (prof && prof.deviceId === roomCreatorDeviceId) {
-                        electedAdminPeerId = pid;
+                        electedAdminId = pid;
                         break;
                     }
                 }
             }
 
-            // 2. Если настоящий создатель вышел из комнаты (или еще не синхронизирован) —
-            // права админа временно передаются тому из оставшихся онлайн участников, кто зашел раньше всех
-            // (минимальный joinTimestamp, а при равенстве — меньший номер слота s1..s8)
-            if (!electedAdminPeerId) {
-                const sorted = [...onlinePeers].sort((a, b) => {
-                    const tsA = peerJoinTimestamps[a] || Number.MAX_SAFE_INTEGER;
-                    const tsB = peerJoinTimestamps[b] || Number.MAX_SAFE_INTEGER;
-                    if (Math.abs(tsA - tsB) > 250) {
-                        return tsA - tsB;
-                    }
-                    return parseSlotNumber(a) - parseSlotNumber(b);
-                });
-                electedAdminPeerId = sorted[0] || myId;
+            // 2) Если создатель вышел — права временно у текущего Хоста (${activeRoom}_host), либо у старшего по ID
+            if (!electedAdminId) {
+                if (onlinePeers.includes(hostPeerId)) {
+                    electedAdminId = hostPeerId;
+                } else {
+                    const sorted = [...onlinePeers].sort();
+                    electedAdminId = sorted[0] || myId;
+                }
             }
 
-            currentAdminPeerId = electedAdminPeerId;
+            currentAdminPeerId = electedAdminId;
             myProfile.isAdmin = (currentAdminPeerId === myId);
 
-            // Обновляем статус isAdmin у всех участников (строго один создатель в комнате!)
             Object.keys(userProfiles).forEach(pid => {
                 if (userProfiles[pid]) {
                     userProfiles[pid].isAdmin = (pid === currentAdminPeerId);
@@ -1142,7 +1335,6 @@
 
             updateRoomHeaderUI();
 
-            // Перерисовываем карточки всех участников, чтобы корона/щит админа и админ-меню мгновенно обновились
             if (document.getElementById(`card-${myId}`)) {
                 updateCardVisuals(myId, myProfile, true);
             }
@@ -1177,97 +1369,139 @@
             setTimeout(() => { toastNotif.classList.remove('show'); }, 1800);
         }
 
-        function buildHandshakePacket(type = 'handshake') {
-            return {
-                type: type,
-                id: myId,
-                profile: myProfile,
-                state: userStates[myId] || { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted },
-                joinTimestamp: myJoinTimestamp,
-                roomCreatorId: roomCreatorDeviceId
-            };
-        }
+        // 3. KEEP-ALIVE LOOP (КАЖДЫЕ 4 СЕКУНДЫ ПИНГ/ПОНГ + КОНТРОЛЬ ICE И ЗВОНКОВ)
+        function startHeartbeatLoop() {
+            if (heartbeatTimer) clearInterval(heartbeatTimer);
+            heartbeatTimer = setInterval(() => {
+                if (!peer || peer.destroyed || !myId) return;
 
-        // 1. ПОСТОЯННЫЙ РАДАР (DISCOVERY LOOP КАЖДЫЕ 2.5 СЕКУНДЫ ПО СЛОТАМ s1..s8 + HEARTBEAT)
-        function runRadarCycle() {
-            if (!peer || peer.destroyed || !myId) return;
-
-            // 1. Если соединение с сигнальным сервером PeerJS прервалось — автоматически переподключаемся
-            if (peer.disconnected && !peer.destroyed) {
-                updateNetQualityDOM(myId, 'bad', 999);
-                try { peer.reconnect(); } catch (e) {}
-            } else {
-                updateNetQualityDOM(myId, 'good', 0);
-            }
-
-            const now = Date.now();
-
-            // 2. Проходим циклом по всем 8 фиксированным слотам комнаты: s1 .. s8
-            for (let i = 1; i <= MAX_ROOM_SLOTS; i++) {
-                const targetId = getSlotPeerId(i);
-                if (targetId === myId) continue;
-
-                const conn = activeConnections[targetId];
-                if (!conn || !conn.open) {
-                    connectDataToPeer(targetId);
+                if (peer.disconnected && !peer.destroyed) {
+                    updateNetQualityDOM(myId, 'bad', 999);
+                    try { peer.reconnect(); } catch (e) {}
                 } else {
-                    // Отправляем ping для проверки живости канала, RTT и синхронизации создателя комнаты
-                    try {
-                        conn.send({
-                            type: 'ping',
-                            id: myId,
-                            ts: now,
-                            joinTimestamp: myJoinTimestamp,
-                            roomCreatorId: roomCreatorDeviceId
-                        });
-                    } catch (e) {}
+                    updateNetQualityDOM(myId, 'good', 0);
+                }
 
-                    // Если DataConnection открыт, но нет живого аудиопотока — поднимаем голосовой звонок
-                    if (!remoteStreams[targetId] && !activeCalls[targetId]) {
-                        evaluateVoiceCall(targetId);
+                const now = Date.now();
+                const allKnownPeers = new Set([
+                    ...Object.keys(userProfiles),
+                    ...Object.keys(activeConnections)
+                ]);
+                allKnownPeers.delete(myId);
+
+                allKnownPeers.forEach(pid => {
+                    if (!pid) return;
+                    if (!peerHealth[pid]) {
+                        peerHealth[pid] = { lastSeen: now, rtt: 35, quality: 'good', reconnecting: false };
                     }
-                }
-            }
 
-            // 3. Проверяем здоровье всех известных участников и замеряем RTT через WebRTC getStats()
-            Object.keys(userProfiles).forEach(pid => {
-                if (!pid || pid === myId) return;
-                if (!peerHealth[pid]) {
-                    peerHealth[pid] = { lastSeen: now, rtt: 35, quality: 'good', reconnecting: false };
-                }
-
-                const call = activeCalls[pid];
-                if (call && call.peerConnection) {
-                    try {
-                        call.peerConnection.getStats().then(stats => {
-                            stats.forEach(report => {
-                                if (report.type === 'candidate-pair' && report.state === 'succeeded' && typeof report.currentRoundTripTime === 'number') {
-                                    const statsRtt = Math.round(report.currentRoundTripTime * 1000);
-                                    if (statsRtt > 0) {
-                                        applyRttMeasurement(pid, statsRtt);
-                                    }
-                                }
+                    const conn = activeConnections[pid];
+                    if (conn && conn.open) {
+                        try {
+                            conn.send({
+                                type: 'ping',
+                                id: myId,
+                                ts: now,
+                                creatorDeviceId: roomCreatorDeviceId
                             });
-                        }).catch(() => {});
-                    } catch (e) {}
-                }
+                        } catch (e) {}
 
-                const elapsed = now - peerHealth[pid].lastSeen;
-                if (elapsed > PEER_DEAD_TIMEOUT_MS) {
-                    cleanupPeer(pid);
-                } else if (elapsed > PEER_STALE_TIMEOUT_MS) {
-                    updateNetQualityDOM(pid, 'bad', Math.min(999, Math.round(elapsed / 10)));
-                    triggerSoftPeerReconnect(pid);
-                }
-            });
+                        // Если DataConnection открыт, но голосовой поток отсутствует или оборвался — перезапускаем звонок
+                        const call = activeCalls[pid];
+                        const iceState = call?.peerConnection?.iceConnectionState;
+                        if (!call || !remoteStreams[pid] || iceState === 'disconnected' || iceState === 'failed' || iceState === 'closed') {
+                            callVoicePeer(pid, true);
+                        }
+                    }
 
-            recalculateRoomAdmin();
+                    const call = activeCalls[pid];
+                    if (call && call.peerConnection) {
+                        try {
+                            call.peerConnection.getStats().then(stats => {
+                                stats.forEach(report => {
+                                    if (report.type === 'candidate-pair' && report.state === 'succeeded' && typeof report.currentRoundTripTime === 'number') {
+                                        const statsRtt = Math.round(report.currentRoundTripTime * 1000);
+                                        if (statsRtt > 0) {
+                                            applyRttMeasurement(pid, statsRtt);
+                                        }
+                                    }
+                                });
+                            }).catch(() => {});
+                        } catch (e) {}
+                    }
+
+                    const elapsed = now - peerHealth[pid].lastSeen;
+                    if (elapsed > PEER_DEAD_TIMEOUT_MS) {
+                        cleanupPeer(pid);
+                    } else if (elapsed > PEER_STALE_TIMEOUT_MS) {
+                        updateNetQualityDOM(pid, 'bad', Math.min(999, Math.round(elapsed / 10)));
+                        triggerSoftPeerReconnect(pid);
+                    }
+                });
+            }, HEARTBEAT_INTERVAL_MS);
         }
 
-        function startRadarLoop() {
-            if (radarTimer) clearInterval(radarTimer);
-            runRadarCycle();
-            radarTimer = setInterval(runRadarCycle, RADAR_INTERVAL_MS);
+        // 2.2. АВТО-ПОВТОР ГОСТЯ К ХОСТУ КАЖДЫЕ 3 СЕКУНДЫ + ПЕРЕХВАТ РОЛИ ХОСТА ПРИ ВЫХОДЕ СТАРОГО
+        function startGuestRetryLoop() {
+            if (guestRetryTimer) clearInterval(guestRetryTimer);
+            guestRetryTimer = setInterval(() => {
+                if (!peer || peer.destroyed || !myId || isPromotingToHost) return;
+                if (isRoomHost) return;
+
+                const hostConn = activeConnections[hostPeerId];
+                if (!hostConn || !hostConn.open) {
+                    connectDataToPeer(hostPeerId);
+                }
+            }, GUEST_RETRY_INTERVAL_MS);
+        }
+
+        // Повышение гостя до ${activeRoom}_host, если старый хост ушел и место освободилось
+        function becomeHost() {
+            if (isRoomHost || isPromotingToHost || !localStream) return;
+            isPromotingToHost = true;
+
+            const oldMyId = myId;
+            if (peer && !peer.destroyed) {
+                try { peer.destroy(); } catch (e) {}
+            }
+
+            setTimeout(() => {
+                const candidateHost = new Peer(hostPeerId, PEER_CONFIG);
+
+                candidateHost.on('open', (id) => {
+                    isPromotingToHost = false;
+                    peer = candidateHost;
+                    myId = id;
+                    isRoomHost = true;
+
+                    if (oldMyId && oldMyId !== myId) {
+                        delete userProfiles[oldMyId];
+                        delete userStates[oldMyId];
+                        removeUserCard(oldMyId);
+                    }
+
+                    peerHealth[myId] = { lastSeen: Date.now(), rtt: 0, quality: 'good', reconnecting: false };
+                    userStates[myId] = { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted };
+
+                    addUserCard(myId, myProfile, true);
+                    recalculateRoomAdmin();
+                    bindPeerEvents();
+
+                    // Переподключаемся ко всем известным участникам комнаты
+                    Object.keys(userProfiles).forEach(pid => {
+                        if (pid && pid !== myId && pid !== oldMyId) {
+                            connectDataToPeer(pid);
+                        }
+                    });
+                });
+
+                candidateHost.on('error', () => {
+                    // Если кто-то другой уже успел занять hostPeerId — возвращаемся в режим гостя и подключаемся к нему
+                    isPromotingToHost = false;
+                    try { candidateHost.destroy(); } catch (e) {}
+                    startPeerConnection();
+                });
+            }, 250);
         }
 
         function applyRttMeasurement(peerId, rttMs) {
@@ -1293,11 +1527,16 @@
             if (!existingConn || !existingConn.open) {
                 try { if (existingConn) existingConn.close(); } catch (e) {}
                 delete activeConnections[remoteId];
-                delete connectionAttemptTs[remoteId];
                 connectDataToPeer(remoteId);
             } else {
                 try {
-                    existingConn.send(buildHandshakePacket('request_voice_reconnect'));
+                    existingConn.send({
+                        type: 'request_voice_reconnect',
+                        id: myId,
+                        profile: myProfile,
+                        state: userStates[myId] || { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted },
+                        creatorDeviceId: roomCreatorDeviceId
+                    });
                 } catch (e) {}
             }
 
@@ -1328,37 +1567,15 @@
                     if (localStream && peer && !peer.destroyed) {
                         callVoicePeer(remoteId, true);
                     }
-                }, 300);
+                }, 350);
             }
 
             setTimeout(() => {
                 delete reconnectLocks[remoteId];
-            }, 4000);
+            }, 4500);
         }
 
-        // Синхронизация roomCreatorDeviceId при обмене пакетами
-        function syncRoomCreatorId(incomingCreatorId, senderPeerId, senderJoinTs) {
-            if (!incomingCreatorId) return;
-
-            if (!roomCreatorDeviceId) {
-                roomCreatorDeviceId = incomingCreatorId;
-                localStorage.setItem('voiceup_creator_' + activeRoom, roomCreatorDeviceId);
-                return;
-            }
-
-            // Если возник конфликт двух разных creatorId (например, два клиента создали комнату в разное время),
-            // побеждает тот создатель, который уже находился в комнате раньше (меньший joinTimestamp или меньший слот)
-            if (roomCreatorDeviceId !== incomingCreatorId) {
-                const myTs = myJoinTimestamp || Number.MAX_SAFE_INTEGER;
-                const remoteTs = senderJoinTs || peerJoinTimestamps[senderPeerId] || Number.MAX_SAFE_INTEGER;
-                if (remoteTs < myTs - 200 || (Math.abs(remoteTs - myTs) <= 200 && parseSlotNumber(senderPeerId) < mySlotNumber)) {
-                    roomCreatorDeviceId = incomingCreatorId;
-                    localStorage.setItem('voiceup_creator_' + activeRoom, roomCreatorDeviceId);
-                }
-            }
-        }
-
-        // ОБРАБОТЧИК СИГНАЛОВ МЕЖДУ СЛОТАМИ
+        // ОБРАБОТЧИК MESH-СИГНАЛОВ
         function handleIncomingSignal(remoteId, message) {
             if (!message || typeof message !== 'object') return;
             const peerId = message.id || remoteId;
@@ -1370,12 +1587,12 @@
                 peerHealth[peerId].lastSeen = Date.now();
             }
 
-            if (typeof message.joinTimestamp === 'number' && message.joinTimestamp > 0) {
-                peerJoinTimestamps[peerId] = message.joinTimestamp;
-            }
-
-            if (message.roomCreatorId) {
-                syncRoomCreatorId(message.roomCreatorId, peerId, message.joinTimestamp);
+            // Синхронизация истинного создателя комнаты (creatorDeviceId)
+            if (message.creatorDeviceId) {
+                if (!roomCreatorDeviceId) {
+                    roomCreatorDeviceId = message.creatorDeviceId;
+                    localStorage.setItem('voiceup_creator_' + activeRoom, roomCreatorDeviceId);
+                }
             }
 
             // Heartbeat Ping / Pong
@@ -1384,12 +1601,8 @@
                     type: 'pong',
                     id: myId,
                     ts: message.ts,
-                    joinTimestamp: myJoinTimestamp,
-                    roomCreatorId: roomCreatorDeviceId
+                    creatorDeviceId: roomCreatorDeviceId
                 });
-                if (!remoteStreams[peerId] && !activeCalls[peerId]) {
-                    evaluateVoiceCall(peerId);
-                }
                 recalculateRoomAdmin();
                 return;
             }
@@ -1411,49 +1624,97 @@
                 return;
             }
 
+            // Проверка статуса бана от клиента, находящегося на экране бана
+            if (message.type === 'check_ban_status') {
+                if (myProfile.isAdmin || isRoomHost) {
+                    bannedDevices = loadRoomBannedDevices(activeRoom);
+                    if (!bannedDevices[message.deviceId]) {
+                        sendToPeer(peerId, { type: 'appeal_accepted', target: peerId, deviceId: message.deviceId });
+                    } else {
+                        pendingAppealPeers[message.deviceId] = peerId;
+                    }
+                }
+                return;
+            }
+
             const peerProfile = message.profile || userProfiles[peerId] || { nick: dict[currentLang].guest, color: '#ffffff', avatar: '', deviceType: 'pc' };
 
-            // Проверка бана (выполняет текущий админ комнаты)
-            if (myProfile.isAdmin && (message.type === 'handshake' || message.type === ' handshake_reply' || message.type === 'join')) {
-                if (bannedDevices[peerProfile.deviceId]) {
+            // Проверка бана для текущей комнаты (выполняет админ или хост комнаты)
+            if ((myProfile.isAdmin || isRoomHost) && (message.type === 'join' || message.type === 'handshake' || message.type === 'handshake_reply')) {
+                bannedDevices = loadRoomBannedDevices(activeRoom);
+                if (peerProfile.deviceId && bannedDevices[peerProfile.deviceId]) {
+                    pendingAppealPeers[peerProfile.deviceId] = peerId;
                     sendToPeer(peerId, { type: 'banned_reject', target: peerId, senderName: myProfile.nick });
                     return;
+                } else if (peerProfile.deviceId) {
+                    // Если пользователя нет в списке банов комнаты — подтверждаем чистый вход
+                    sendToPeer(peerId, { type: 'unban_clear', target: peerId, deviceId: peerProfile.deviceId });
                 }
             }
 
+            if (message.type === 'unban_clear' && (message.target === myId || message.deviceId === myProfile.deviceId)) {
+                setClientBannedInRoom(activeRoom, false);
+                return;
+            }
+
             // Апелляция бана
-            if (myProfile.isAdmin && message.type === 'ban_appeal') {
+            if (message.type === 'ban_appeal') {
+                if (isRoomHost && !myProfile.isAdmin && currentAdminPeerId && currentAdminPeerId !== myId) {
+                    // Пересылаем апелляцию текущему создателю/админу комнаты
+                    sendToPeer(currentAdminPeerId, message);
+                }
+                if (!myProfile.isAdmin) return;
+
+                pendingAppealPeers[message.deviceId] = peerId;
+                bannedDevices = loadRoomBannedDevices(activeRoom);
+                // Если в списке банов его уже нет — сразу пускаем автоматически!
+                if (!bannedDevices[message.deviceId]) {
+                    sendToPeer(peerId, { type: 'appeal_accepted', target: peerId, deviceId: message.deviceId });
+                    broadcastSignaling({ type: 'appeal_accepted', target: peerId, deviceId: message.deviceId });
+                    return;
+                }
+
                 if (ignoredAppeals[message.deviceId]) return; 
                 const notifId = `appeal-${message.deviceId}`; 
                 if (document.getElementById(notifId)) return; 
                 const notif = document.createElement('div'); 
                 notif.id = notifId; 
                 notif.className = 'appeal-card';
-                notif.innerHTML = `<div style="font-size:13px; margin-bottom:10px;"><b>${escapeHTML(message.nick)}</b> ${dict[currentLang].wantsToJoin}.</div><div style="display:flex; gap:6px;"><button class="primary-btn" style="padding:6px; font-size:11px;" onclick="acceptAppeal('${message.id}', '${message.deviceId}')">${dict[currentLang].letIn}</button><button class="secondary-btn" style="padding:6px; font-size:11px; border-color:var(--danger); color:var(--danger);" onclick="ignoreAppeal('${message.deviceId}')">${dict[currentLang].hide}</button></div>`;
+                notif.innerHTML = `<div style="font-size:13px; margin-bottom:10px;"><b>${escapeHTML(message.nick)}</b> ${dict[currentLang].wantsToJoin}.</div><div style="display:flex; gap:6px;"><button class="primary-btn" style="padding:6px; font-size:11px;" onclick="acceptAppeal('${peerId}', '${message.deviceId}')">${dict[currentLang].letIn}</button><button class="secondary-btn" style="padding:6px; font-size:11px; border-color:var(--danger); color:var(--danger);" onclick="ignoreAppeal('${message.deviceId}')">${dict[currentLang].hide}</button></div>`;
                 document.getElementById('admin-notifications').appendChild(notif); 
                 return;
             }
 
             if (message.type === 'banned_reject' && message.target === myId) {
-                localStorage.setItem('voiceup_banned', 'true');
+                setClientBannedInRoom(activeRoom, true);
                 showBannedScreen();
                 return;
             }
 
             if (message.type === 'admin_kick') {
                 if (message.target === myId) {
-                    localStorage.setItem('voiceup_banned', 'true');
+                    setClientBannedInRoom(activeRoom, true);
                     broadcastSignaling({ type: 'leave', id: myId });
                     showBannedScreen();
                 } else {
+                    if (message.targetDeviceId && message.targetNick && (myProfile.isAdmin || isRoomHost)) {
+                        bannedDevices = loadRoomBannedDevices(activeRoom);
+                        bannedDevices[message.targetDeviceId] = {
+                            nick: message.targetNick,
+                            deviceId: message.targetDeviceId,
+                            timestamp: Date.now()
+                        };
+                        saveRoomBannedDevices(activeRoom, bannedDevices);
+                    }
                     cleanupPeer(message.target);
                     playUiSound('leave');
                 }
                 return;
             }
 
-            if (message.type === 'appeal_accepted' && message.target === myId) {
-                localStorage.removeItem('voiceup_banned');
+            if (message.type === 'appeal_accepted' && (message.target === myId || message.deviceId === myProfile.deviceId)) {
+                setClientBannedInRoom(activeRoom, false);
+                if (appealCheckTimer) clearInterval(appealCheckTimer);
                 window.location.reload();
                 return;
             }
@@ -1490,19 +1751,92 @@
                 return; 
             }
 
-            // ОБМЕН ПАКЕТОМ HANDSHAKE МЕЖДУ СЛОТАМИ И ПОДНЯТИЕ ГОЛОСОВОГО КАНАЛА
-            if (message.type === 'handshake' || message.type === 'handshake_ack' || message.type === 'join') {
+            // РЕГИСТРАЦИЯ НОВОГО УЧАСТНИКА И MESH-ДИСКАВЕРИ ЧЕРЕЗ ХОСТА
+            if (message.type === 'join' || message.type === 'handshake' || message.type === 'handshake_reply') {
                 userProfiles[peerId] = peerProfile;
                 userStates[peerId] = message.state || { mic: true, deaf: false, adminMuted: false };
                 addUserCard(peerId, peerProfile, false);
                 recalculateRoomAdmin();
 
-                // Если это входящий handshake — отправляем ответный handshake_ack со своими данными и roomCreatorId
-                if (message.type === 'handshake' || message.type === 'join') {
-                    sendToPeer(peerId, buildHandshakePacket('handshake_ack'));
+                if (message.type === 'join' || message.type === 'handshake') {
+                    sendToPeer(peerId, {
+                        type: 'handshake_reply',
+                        id: myId,
+                        profile: myProfile,
+                        state: userStates[myId] || { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted },
+                        creatorDeviceId: roomCreatorDeviceId
+                    });
+                }
+
+                // Если мы Хост комнаты — рассылаем новому участнику полный список пиров, а остальным — его ID
+                if (isRoomHost && message.type === 'join') {
+                    const allPeersList = Object.keys(userProfiles).filter(id => id && id !== peerId);
+                    sendToPeer(peerId, {
+                        type: 'room-state',
+                        id: myId,
+                        peers: allPeersList,
+                        profiles: userProfiles,
+                        states: userStates,
+                        creatorDeviceId: roomCreatorDeviceId
+                    });
+
+                    for (const existingPeerId in activeConnections) {
+                        if (existingPeerId !== peerId && activeConnections[existingPeerId].open) {
+                            sendToPeer(existingPeerId, {
+                                type: 'peer-joined',
+                                id: myId,
+                                newPeerId: peerId,
+                                profile: peerProfile,
+                                state: userStates[peerId],
+                                creatorDeviceId: roomCreatorDeviceId
+                            });
+                        }
+                    }
                 }
 
                 evaluateVoiceCall(peerId);
+                return;
+            }
+
+            // Получен список всех пиров комнаты от Хоста
+            if (message.type === 'room-state') {
+                if (message.creatorDeviceId && !roomCreatorDeviceId) {
+                    roomCreatorDeviceId = message.creatorDeviceId;
+                    localStorage.setItem('voiceup_creator_' + activeRoom, roomCreatorDeviceId);
+                }
+                if (message.profiles) {
+                    for (const pid in message.profiles) {
+                        if (pid !== myId) {
+                            userProfiles[pid] = message.profiles[pid];
+                            userStates[pid] = (message.states && message.states[pid]) || { mic: true, deaf: false, adminMuted: false };
+                            addUserCard(pid, userProfiles[pid], false);
+                        }
+                    }
+                }
+                recalculateRoomAdmin();
+
+                if (Array.isArray(message.peers)) {
+                    message.peers.forEach(pid => {
+                        if (pid && pid !== myId) {
+                            connectDataToPeer(pid);
+                            evaluateVoiceCall(pid);
+                        }
+                    });
+                }
+                return;
+            }
+
+            // Уведомление от Хоста о новом госте
+            if (message.type === 'peer-joined' && message.newPeerId && message.newPeerId !== myId) {
+                const newPid = message.newPeerId;
+                if (message.profile) {
+                    userProfiles[newPid] = message.profile;
+                    userStates[newPid] = message.state || { mic: true, deaf: false, adminMuted: false };
+                    addUserCard(newPid, userProfiles[newPid], false);
+                }
+                recalculateRoomAdmin();
+                connectDataToPeer(newPid);
+                evaluateVoiceCall(newPid);
                 return;
             }
 
@@ -1511,7 +1845,6 @@
             }
         }
 
-        // ДЕТЕРМИНИРОВАННЫЙ ЗВОНОК (myId > remoteId) + ПОВТОРНЫЙ ЗВОНОК ЧЕРЕЗ 3 СЕКУНДЫ ЕСЛИ НЕТ АУДИОПОТОКА
         function evaluateVoiceCall(remoteId) {
             if (!peer || peer.destroyed || !localStream || remoteId === myId) return;
 
@@ -1519,13 +1852,12 @@
                 callVoicePeer(remoteId, false);
             }
 
-            // Гарантия аудиопотока: если через 3 секунды после handshake нет аудиопотока — инициируется повторный звонок
             setTimeout(() => {
                 if (!peer || peer.destroyed || !localStream || remoteId === myId) return;
                 if (activeConnections[remoteId]?.open && !remoteStreams[remoteId]) {
                     callVoicePeer(remoteId, true);
                 }
-            }, 3000);
+            }, 2500);
         }
 
         function attachPeerConnectionMonitors(pc, remoteId) {
@@ -1598,6 +1930,7 @@
             });
 
             peer.on('call', (call) => {
+                if (!localStream) return;
                 activeCalls[call.peer] = call;
                 call.answer(localStream);
                 if (call.peerConnection) {
@@ -1633,29 +1966,31 @@
             });
 
             peer.on('error', (err) => {
-                // Штатный ответ при сканировании свободных слотов s1..s8 радаром
-                if (err && err.type === 'peer-unavailable') return;
-                console.warn('Peer notice:', err.type);
+                if (!err) return;
+                // Если мы Гость и при стуке к hostPeerId сервер сообщает peer-unavailable (старый хост вышел и место свободно)
+                if (err.type === 'peer-unavailable' && !isRoomHost && !isPromotingToHost) {
+                    const msg = String(err.message || '');
+                    if (!hostPeerId || msg.includes(hostPeerId)) {
+                        // Проверяем: либо у нас нет других открытых соединений, либо мы старшие по ID среди оставшихся гостей
+                        const openOtherPeers = Object.keys(activeConnections).filter(
+                            pid => pid !== hostPeerId && activeConnections[pid] && activeConnections[pid].open
+                        );
+                        const allGuestIds = [myId, ...openOtherPeers].sort();
+                        if (openOtherPeers.length === 0 || allGuestIds[0] === myId) {
+                            becomeHost();
+                        }
+                    }
+                    return;
+                }
+                console.warn('Peer error:', err.type);
             });
         }
 
-        // ПОДКЛЮЧЕНИЕ К СЛОТУ С ЗАЩИТОЙ ОТ ДУБЛИРУЮЩИХ ПОПЫТОК ВО ВРЕМЯ CONNECTING (ТАЙМАУТ 4 СЕКУНДЫ)
         function connectDataToPeer(targetId) {
             if (!peer || peer.destroyed || !targetId || targetId === myId) return;
-            const existing = activeConnections[targetId];
-            if (existing && existing.open) return;
-
-            const now = Date.now();
-            const lastAttempt = connectionAttemptTs[targetId] || 0;
-            if (now - lastAttempt < CONNECT_ATTEMPT_TIMEOUT_MS) return;
-
-            if (existing && !existing.open) {
-                try { existing.close(); } catch (e) {}
-                delete activeConnections[targetId];
-            }
+            if (activeConnections[targetId] && activeConnections[targetId].open) return;
 
             try {
-                connectionAttemptTs[targetId] = now;
                 const conn = peer.connect(targetId, { reliable: true });
                 setupDataConnection(conn);
             } catch (e) {}
@@ -1671,7 +2006,6 @@
 
             conn.on('open', () => {
                 activeConnections[remoteId] = conn;
-                connectionAttemptTs[remoteId] = Date.now();
                 if (!peerHealth[remoteId]) {
                     peerHealth[remoteId] = { lastSeen: Date.now(), rtt: 35, quality: 'good', reconnecting: false };
                 } else {
@@ -1682,10 +2016,13 @@
                     attachPeerConnectionMonitors(conn.peerConnection, remoteId);
                 }
 
-                // Как только DataConnection между двумя слотами открывается, обмениваемся пакетом handshake
-                try {
-                    conn.send(buildHandshakePacket('handshake'));
-                } catch (e) {}
+                conn.send({
+                    type: remoteId === hostPeerId ? 'join' : 'handshake',
+                    id: myId,
+                    profile: myProfile,
+                    state: userStates[myId] || { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted },
+                    creatorDeviceId: roomCreatorDeviceId
+                });
 
                 evaluateVoiceCall(remoteId);
             });
@@ -1697,7 +2034,6 @@
             conn.on('close', () => {
                 if (activeConnections[remoteId] === conn) {
                     delete activeConnections[remoteId];
-                    delete connectionAttemptTs[remoteId];
                     if (userProfiles[remoteId]) {
                         updateNetQualityDOM(remoteId, 'bad', 999);
                     }
@@ -1707,7 +2043,6 @@
             conn.on('error', () => {
                 if (activeConnections[remoteId] === conn) {
                     delete activeConnections[remoteId];
-                    delete connectionAttemptTs[remoteId];
                 }
             });
         }
@@ -1728,9 +2063,7 @@
 
         function cleanupPeer(peerId) {
             delete activeConnections[peerId];
-            delete connectionAttemptTs[peerId];
             delete peerHealth[peerId];
-            delete peerJoinTimestamps[peerId];
             delete reconnectLocks[peerId];
             cleanupCall(peerId);
             delete userProfiles[peerId];
@@ -1844,99 +2177,117 @@
             }
         }
 
-        // 1. ЗАНЯТИЕ СВОБОДНОГО СЛОТА (${activeRoom}_s1 ... ${activeRoom}_s8) И ЗАПУСК РАДАРА
+        // 2. СТАРТ СЕТИ: СХЕМА hostPeerId = activeRoom + '_host' И ГОСТЕЙ activeRoom + '_guest_' + rand
         function startPeerConnection() {
-            if (peer) {
+            if (peer && !peer.destroyed) {
                 try { peer.destroy(); } catch (e) {}
-                peer = null;
             }
 
-            // Проверяем, сохранен ли уже создатель этой комнаты в localStorage
-            const storedCreator = localStorage.getItem('voiceup_creator_' + activeRoom);
-            roomCreatorDeviceId = storedCreator || "";
+            hostPeerId = `${activeRoom}_host`;
+            bannedDevices = loadRoomBannedDevices(activeRoom);
+            roomCreatorDeviceId = localStorage.getItem('voiceup_creator_' + activeRoom) || "";
 
-            const tryAcquireSlot = (slotNum) => {
-                const candidateId = slotNum <= MAX_ROOM_SLOTS
-                    ? getSlotPeerId(slotNum)
-                    : `${activeRoom}_s${slotNum}_${Math.random().toString(36).substring(2, 5)}`;
+            const candidateHost = new Peer(hostPeerId, PEER_CONFIG);
+            let hostSettled = false;
 
-                const candidatePeer = new Peer(candidateId, PEER_CONFIG);
-                let settled = false;
+            const hostInitTimeout = setTimeout(() => {
+                if (!hostSettled) {
+                    hostSettled = true;
+                    try { candidateHost.destroy(); } catch(e) {}
+                    initAsGuestPeer();
+                }
+            }, 3500);
 
-                const slotTimeout = setTimeout(() => {
-                    if (!settled) {
-                        settled = true;
-                        try { candidatePeer.destroy(); } catch (e) {}
-                        tryAcquireSlot(slotNum + 1);
-                    }
-                }, 3500);
+            candidateHost.on('open', (id) => {
+                if (hostSettled) return;
+                hostSettled = true;
+                clearTimeout(hostInitTimeout);
 
-                candidatePeer.on('open', (assignedId) => {
-                    if (settled) return;
-                    settled = true;
-                    clearTimeout(slotTimeout);
+                peer = candidateHost;
+                myId = id;
+                isRoomHost = true;
 
-                    peer = candidatePeer;
-                    myId = assignedId;
-                    mySlotNumber = slotNum;
-                    myJoinTimestamp = Date.now();
-                    peerJoinTimestamps[myId] = myJoinTimestamp;
+                // Если у комнаты еще не сохранен создатель — первый создатель сохраняется в voiceup_creator_${activeRoom}
+                if (!roomCreatorDeviceId) {
+                    roomCreatorDeviceId = myProfile.deviceId;
+                    localStorage.setItem('voiceup_creator_' + activeRoom, roomCreatorDeviceId);
+                }
 
-                    // Если мы заняли первый слот s1 и у комнаты еще нет записанного создателя —
-                    // предварительно назначаем себя создателем (если в других слотах уже есть старожилы, handshake синхронизирует их создателя)
-                    if (slotNum === 1 && !roomCreatorDeviceId) {
-                        roomCreatorDeviceId = myProfile.deviceId;
-                        localStorage.setItem('voiceup_creator_' + activeRoom, roomCreatorDeviceId);
-                    }
+                peerHealth[myId] = { lastSeen: Date.now(), rtt: 0, quality: 'good', reconnecting: false };
+                userStates[myId] = { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted };
 
-                    peerHealth[myId] = { lastSeen: Date.now(), rtt: 0, quality: 'good', reconnecting: false };
-                    userStates[myId] = { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted };
+                addUserCard(myId, myProfile, true);
+                recalculateRoomAdmin();
+                bindPeerEvents();
+                startLocalSpeakingDetector();
+                startSessionTimer();
+                startHeartbeatLoop();
+                startGuestRetryLoop();
+            });
 
-                    addUserCard(myId, myProfile, true);
-                    recalculateRoomAdmin();
-                    bindPeerEvents();
-                    startLocalSpeakingDetector();
-                    startSessionTimer();
-                    startRadarLoop();
+            candidateHost.on('error', (err) => {
+                if (!hostSettled) {
+                    hostSettled = true;
+                    clearTimeout(hostInitTimeout);
+                    try { candidateHost.destroy(); } catch(e) {}
+                    initAsGuestPeer();
+                } else {
+                    console.warn('Host peer error:', err.type);
+                }
+            });
+        }
 
-                    // Если мы зашли на слот s2..s8, потому что s1 завис на сервере PeerJS, и через 3 сек в комнате больше никого нет —
-                    // фиксируем себя создателем пустой комнаты
-                    setTimeout(() => {
-                        const otherPeersCount = Object.keys(userProfiles).filter(id => id !== myId).length;
-                        if (otherPeersCount === 0 && !roomCreatorDeviceId) {
-                            roomCreatorDeviceId = myProfile.deviceId;
-                            localStorage.setItem('voiceup_creator_' + activeRoom, roomCreatorDeviceId);
-                            recalculateRoomAdmin();
-                        }
-                    }, 3000);
-                });
+        function initAsGuestPeer() {
+            const rand = Math.random().toString(36).substring(2, 8);
+            const guestPeerId = `${activeRoom}_guest_${rand}`;
+            peer = new Peer(guestPeerId, PEER_CONFIG);
 
-                candidatePeer.on('error', () => {
-                    if (settled) return;
-                    settled = true;
-                    clearTimeout(slotTimeout);
-                    try { candidatePeer.destroy(); } catch (e) {}
-                    // Если слот занят (unavailable-id), мгновенно пробуем следующий слот s2..s8
-                    tryAcquireSlot(slotNum + 1);
-                });
-            };
+            peer.on('open', (id) => {
+                myId = id;
+                isRoomHost = false;
 
-            tryAcquireSlot(1);
+                peerHealth[myId] = { lastSeen: Date.now(), rtt: 0, quality: 'good', reconnecting: false };
+                userStates[myId] = { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted };
+
+                addUserCard(myId, myProfile, true);
+                recalculateRoomAdmin();
+                bindPeerEvents();
+                startLocalSpeakingDetector();
+                startSessionTimer();
+                startHeartbeatLoop();
+                startGuestRetryLoop();
+
+                connectDataToPeer(hostPeerId);
+            });
         }
 
         // Авто-восстановление при возвращении мобильного браузера из фона
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && peer && myId) {
-                runRadarCycle();
+                if (peer.disconnected && !peer.destroyed) {
+                    try { peer.reconnect(); } catch (e) {}
+                }
+                if (!isRoomHost && (!activeConnections[hostPeerId] || !activeConnections[hostPeerId].open)) {
+                    connectDataToPeer(hostPeerId);
+                }
+                Object.keys(userProfiles).forEach(pid => {
+                    if (pid !== myId) {
+                        const conn = activeConnections[pid];
+                        const call = activeCalls[pid];
+                        if (!conn || !conn.open || !call || !remoteStreams[pid]) {
+                            triggerSoftPeerReconnect(pid);
+                        }
+                    }
+                });
             }
         });
 
-        // 4. ГРОМКИЕ И ЧЕТКИЕ ДВУХТОНАЛЬНЫЕ ЗВУКИ УВЕДОМЛЕНИЙ В СТИЛЕ DISCORD (GAIN = 0.38)
+        // 4. ГРОМКИЕ ЗВУКИ УВЕДОМЛЕНИЙ В СТИЛЕ DISCORD (GAIN = 0.35)
         function playUiSound(action) {
             try {
                 if (audioCtx.state === 'suspended') audioCtx.resume();
                 const now = audioCtx.currentTime;
-                function playTone(type, freq, tStart, tDuration, sweepFreq = null, peakGain = 0.38) {
+                function playTone(type, freq, tStart, tDuration, sweepFreq = null, peakGain = 0.35) {
                     const osc = audioCtx.createOscillator(); 
                     const gainNode = audioCtx.createGain();
                     osc.connect(gainNode); 
@@ -1997,6 +2348,8 @@
         const joinScreen = document.getElementById('join-screen'); 
         const roomScreen = document.getElementById('room-screen');
         const bannedScreen = document.getElementById('banned-screen');
+        const appealBtn = document.getElementById('appealBtn');
+        const backToMenuBtn = document.getElementById('backToMenuBtn');
         const chatPanel = document.getElementById('chat-panel'); 
         const chatBtn = document.getElementById('chatBtn'); 
         const closeChatBtn = document.getElementById('close-chat'); 
@@ -2067,8 +2420,8 @@
             document.querySelectorAll('.trans-kick').forEach(el => el.innerText = dict[lang].kick); 
             document.querySelector('.trans-banned-title').innerText = dict[lang].bannedTitle; 
             document.querySelector('.trans-banned-desc').innerText = dict[lang].bannedDesc;
-            const appBtn = document.getElementById('appealBtn'); 
-            if (appBtn && !appBtn.disabled) appBtn.innerText = dict[lang].reqAccess;
+            if (appealBtn && !appealBtn.disabled) appealBtn.innerText = dict[lang].reqAccess;
+            if (backToMenuBtn) backToMenuBtn.innerText = dict[lang].backMenu;
             
             renderPinnedRoomsUI();
             updateRoomHeaderUI();
@@ -2132,6 +2485,14 @@
         };
         qrClose.onclick = () => { qrModal.style.display = 'none'; };
         qrModal.onclick = (e) => { if (e.target === qrModal) qrModal.style.display = 'none'; };
+
+        // МОДАЛЬНОЕ ОКНО СПИСКА ЗАБАНЕННЫХ В КОМНАТЕ (#banlist-modal)
+        banlistBtn.onclick = () => {
+            updateBanlistUI();
+            banlistModal.style.display = 'flex';
+        };
+        banlistClose.onclick = () => { banlistModal.style.display = 'none'; };
+        banlistModal.onclick = (e) => { if (e.target === banlistModal) banlistModal.style.display = 'none'; };
 
         function openProfile() {
             colorInput.value = myProfile.color || '#ffffff';
@@ -2217,14 +2578,28 @@
 
         window.sendAdminAction = (action, targetId) => {
             if (!myProfile.isAdmin) return; 
-            const targetDeviceId = userProfiles[targetId]?.deviceId || 'unknown';
+            const targetProfile = userProfiles[targetId] || {};
+            const targetDeviceId = targetProfile.deviceId || 'unknown';
+            const targetNick = targetProfile.nick || dict[currentLang].guest;
+
             if (action === 'kick') { 
-                bannedDevices[targetDeviceId] = true; 
-                localStorage.setItem('voiceup_banned_devices', JSON.stringify(bannedDevices)); 
+                bannedDevices = loadRoomBannedDevices(activeRoom);
+                bannedDevices[targetDeviceId] = {
+                    nick: targetNick,
+                    deviceId: targetDeviceId,
+                    timestamp: Date.now()
+                };
+                saveRoomBannedDevices(activeRoom, bannedDevices);
                 cleanupPeer(targetId); 
                 playUiSound('leave'); 
             }
-            broadcastSignaling({ type: `admin_${action}`, target: targetId, senderName: myProfile.nick });
+            broadcastSignaling({
+                type: `admin_${action}`,
+                target: targetId,
+                targetDeviceId: targetDeviceId,
+                targetNick: targetNick,
+                senderName: myProfile.nick
+            });
             toggleCardMenu(targetId); 
         };
         
@@ -2279,21 +2654,30 @@
             isAssigningDeafenHotkey = true; isAssigningMicHotkey = false; deafenHotkeyBtn.classList.add('listening'); micHotkeyBtn.classList.remove('listening'); updateHotkeysUI(); 
         };
 
+        // 2.1. МГНОВЕННОЕ ОСВОБОЖДЕНИЕ ID НА СЕРВЕРЕ PEERJS ПРИ ВЫХОДЕ / ЗАКРЫТИИ ВКЛАДКИ
+        function releasePeerImmediately() {
+            try {
+                broadcastSignaling({ type: 'leave', id: myId });
+            } catch (e) {}
+            if (peer && !peer.destroyed) {
+                try { peer.destroy(); } catch (e) {}
+            }
+        }
+
         function leaveRoom() { 
-            if (radarTimer) clearInterval(radarTimer);
+            if (heartbeatTimer) clearInterval(heartbeatTimer);
+            if (guestRetryTimer) clearInterval(guestRetryTimer);
+            if (appealCheckTimer) clearInterval(appealCheckTimer);
             stopSessionTimer();
-            broadcastSignaling({ type: 'leave', id: myId });
+            releasePeerImmediately();
             if (localStream) localStream.getTracks().forEach(track => track.stop()); 
-            if (peer) { try { peer.destroy(); } catch (e) {} }
             document.getElementById('room-screen').innerHTML = ''; 
             window.location.href = window.location.pathname; 
         }
         
         disconnectBtn.onclick = leaveRoom; 
-        window.addEventListener('beforeunload', () => { 
-            broadcastSignaling({ type: 'leave', id: myId });
-            if (peer) { try { peer.destroy(); } catch (e) {} }
-        });
+        window.addEventListener('beforeunload', releasePeerImmediately);
+        window.addEventListener('pagehide', releasePeerImmediately);
         
         window.addEventListener('keydown', (e) => { 
             if (isAssigningMicHotkey) { micHotkey = formatKey(e.key); if (micHotkey) localStorage.setItem('voiceup_hotkey', micHotkey); isAssigningMicHotkey = false; micHotkeyBtn.classList.remove('listening'); updateHotkeysUI(); e.preventDefault(); return; } 
@@ -2308,7 +2692,7 @@
         closeChatBtn.onclick = () => { chatOpen = false; chatPanel.classList.remove('open'); };
         chatPanel.onclick = (e) => { if (e.target === chatPanel) closeChatBtn.onclick(); };
 
-        function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
+        function escapeHTML(str) { return String(str || '').replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
         
         function appendChatMessage(id, msgObj) {
             const msgDiv = document.createElement('div'); msgDiv.className = 'chat-msg'; 
@@ -2371,7 +2755,7 @@
         });
 
         function addUserCard(id, profile, isMe) {
-            // Защита от дублирования карточек одного и того же физического устройства при переподключении на новый слот
+            // Удаляем дублирующую карточку того же физического устройства при переподключении
             Object.keys(userProfiles).forEach(existingId => {
                 if (existingId !== id && existingId !== myId && userProfiles[existingId]?.deviceId && userProfiles[existingId]?.deviceId === profile.deviceId) {
                     cleanupPeer(existingId);
@@ -2450,7 +2834,6 @@
             card.querySelector('.device-dot-container').innerHTML = getStatusDotHtml(deviceType);
             card.querySelector('.net-quality-container').innerHTML = getNetQualityHtml(id);
 
-            // Щит/корона админа строго у одного выбранного админа (currentAdminPeerId)
             const isThisPeerAdmin = Boolean(currentAdminPeerId && id === currentAdminPeerId);
             const adminBadge = isThisPeerAdmin ? svgAdmin : ''; 
             card.querySelector('.is-me-badge').innerHTML = (isMe ? dict[currentLang].you : '') + (adminBadge ? ' ' + adminBadge : ''); 
@@ -2482,45 +2865,112 @@
             if(card) card.remove(); 
         }
 
+        // ЭКРАН БАНА С ПОДДЕРЖКОЙ АПЕЛЛЯЦИИ, АВТО-ВХОДА ПРИ РАЗБАНЕ И КНОПКИ «ВЫЙТИ В МЕНЮ»
+        function ensureAppealConnectionAndListener() {
+            hostPeerId = `${activeRoom}_host`;
+            if (!peer || peer.destroyed) {
+                const rand = Math.random().toString(36).substring(2, 8);
+                peer = new Peer(`${activeRoom}_appeal_${rand}`, PEER_CONFIG);
+                peer.on('open', (id) => {
+                    myId = id;
+                    connectDataToPeer(hostPeerId);
+                });
+                peer.on('connection', (conn) => setupDataConnection(conn));
+            } else if (!activeConnections[hostPeerId] || !activeConnections[hostPeerId].open) {
+                connectDataToPeer(hostPeerId);
+            }
+
+            if (appealCheckTimer) clearInterval(appealCheckTimer);
+            appealCheckTimer = setInterval(() => {
+                if (bannedScreen.style.display !== 'flex') {
+                    clearInterval(appealCheckTimer);
+                    return;
+                }
+                if (!activeConnections[hostPeerId] || !activeConnections[hostPeerId].open) {
+                    connectDataToPeer(hostPeerId);
+                } else {
+                    sendToPeer(hostPeerId, {
+                        type: 'check_ban_status',
+                        id: myId,
+                        deviceId: myProfile.deviceId,
+                        nick: elInput.value.trim() || myProfile.nick || dict[currentLang].guest
+                    });
+                }
+            }, 2500);
+        }
+
         function showBannedScreen() { 
             stopSessionTimer();
+            if (heartbeatTimer) clearInterval(heartbeatTimer);
+            if (guestRetryTimer) clearInterval(guestRetryTimer);
             if (localStream) localStream.getTracks().forEach(t => t.stop()); 
             joinScreen.style.display = 'none'; 
             roomScreen.style.display = 'none'; 
             controlsPanel.style.display = 'none'; 
             roomHeader.style.display = 'none';
+            banlistModal.style.display = 'none';
             chatPanel.classList.remove('open'); 
+            appealBtn.disabled = false;
+            appealBtn.style.opacity = '1';
+            appealBtn.innerText = dict[currentLang].reqAccess;
             bannedScreen.style.display = 'flex'; 
+
+            ensureAppealConnectionAndListener();
         }
 
-        document.getElementById('appealBtn').onclick = () => {
+        appealBtn.onclick = () => {
             const nick = elInput.value.trim() || myProfile.nick || dict[currentLang].guest; 
-            broadcastSignaling({ type: 'ban_appeal', id: myId, nick: nick, deviceId: myProfile.deviceId });
-            document.getElementById('appealBtn').innerText = dict[currentLang].reqSent; 
-            document.getElementById('appealBtn').disabled = true; 
-            document.getElementById('appealBtn').style.opacity = '0.5';
+            ensureAppealConnectionAndListener();
+            const sendAppealPayload = () => {
+                broadcastSignaling({ type: 'ban_appeal', id: myId, nick: nick, deviceId: myProfile.deviceId });
+                sendToPeer(hostPeerId, { type: 'ban_appeal', id: myId, nick: nick, deviceId: myProfile.deviceId });
+            };
+            sendAppealPayload();
+            setTimeout(sendAppealPayload, 1200);
+            appealBtn.innerText = dict[currentLang].reqSent; 
+            appealBtn.disabled = true; 
+            appealBtn.style.opacity = '0.5';
+        };
+
+        // Кнопка «Выйти в меню» на экране бана — позволяет свободно выбрать любую другую комнату
+        backToMenuBtn.onclick = () => {
+            if (appealCheckTimer) clearInterval(appealCheckTimer);
+            if (heartbeatTimer) clearInterval(heartbeatTimer);
+            if (guestRetryTimer) clearInterval(guestRetryTimer);
+            if (peer && !peer.destroyed) {
+                try { peer.destroy(); } catch (e) {}
+            }
+            peer = null;
+            bannedScreen.style.display = 'none';
+            roomScreen.innerHTML = '';
+            roomScreen.style.display = 'flex';
+            roomScreen.style.opacity = '0';
+            joinScreen.style.display = 'flex';
+            joinScreen.style.opacity = '1';
+            activeRoom = generateUniqueRoomId();
+            roomCodeInput.value = activeRoom;
+            window.history.replaceState(null, '', window.location.pathname);
         };
 
         window.acceptAppeal = (targetId, deviceId) => {
+            bannedDevices = loadRoomBannedDevices(activeRoom);
             delete bannedDevices[deviceId]; 
-            localStorage.setItem('voiceup_banned_devices', JSON.stringify(bannedDevices));
+            delete ignoredAppeals[deviceId];
+            saveRoomBannedDevices(activeRoom, bannedDevices);
             const notif = document.getElementById(`appeal-${deviceId}`); 
             if (notif) notif.remove(); 
-            broadcastSignaling({ type: 'appeal_accepted', target: targetId });
+            sendToPeer(targetId, { type: 'appeal_accepted', target: targetId, deviceId: deviceId });
+            broadcastSignaling({ type: 'appeal_accepted', target: targetId, deviceId: deviceId });
         };
         
         window.ignoreAppeal = (deviceId) => { 
             ignoredAppeals[deviceId] = true; 
-            localStorage.setItem('voiceup_ignored_appeals', JSON.stringify(ignoredAppeals)); 
             const notif = document.getElementById(`appeal-${deviceId}`); 
             if (notif) notif.remove(); 
         };
 
-        // 5. ВХОД В КОМНАТУ (СОХРАНЕНИЕ ВВЕДЕННОГО ИЛИ URL-КОДА КОМНАТЫ БЕЗ ПЕРЕЗАПИСИ СЛУЧАЙНЫМ)
+        // ВХОД В КОМНАТУ
         elBtn.onclick = async () => {
-            if (localStorage.getItem('voiceup_banned') === 'true') { 
-                return showBannedScreen(); 
-            }
             const inputVal = elInput.value.trim(); 
             if (!inputVal) return alert(dict[currentLang].needNick);
             
@@ -2528,19 +2978,19 @@
             myProfile.isAdmin = false;
             saveMyProfileToStorage();
 
-            const manualRoom = sanitizeRoomName(roomCodeInput.value.trim());
-            const urlRoomParam = sanitizeRoomName(new URLSearchParams(window.location.search).get('room') || window.location.hash.replace('#', '').trim());
-
-            if (manualRoom) {
-                activeRoom = manualRoom;
-            } else if (urlRoomParam) {
-                activeRoom = urlRoomParam;
-            } else if (!activeRoom) {
-                activeRoom = generateUniqueRoomId();
+            let customRoom = sanitizeRoomName(roomCodeInput.value.trim());
+            if (!customRoom) {
+                customRoom = generateUniqueRoomId();
             }
-
+            activeRoom = customRoom;
             roomCodeInput.value = activeRoom;
             window.history.replaceState(null, '', window.location.pathname + '?room=' + activeRoom);
+
+            // Проверяем бан строго для текущей activeRoom (исключая самого создателя этой комнаты)
+            const savedCreatorForRoom = localStorage.getItem('voiceup_creator_' + activeRoom);
+            if (isClientBannedInRoom(activeRoom) && savedCreatorForRoom !== myProfile.deviceId) {
+                return showBannedScreen();
+            }
             
             try {
                 if (audioCtx.state === 'suspended') {
@@ -2564,6 +3014,7 @@
                 joinScreen.style.opacity = '0';
                 setTimeout(() => { 
                     joinScreen.style.display = 'none'; 
+                    roomScreen.style.display = 'flex';
                     roomScreen.style.opacity = '1'; 
                     profileBtn.style.display = 'flex'; 
                     roomHeader.style.display = 'flex';
