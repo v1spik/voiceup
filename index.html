@@ -737,37 +737,22 @@
         } catch (e) {}
 
         const MAX_PINNED_ROOMS = 5;
-        const PRESENCE_INTERVAL_MS = 2500; // Рассылка присутствия каждые 2.5 сек
-        const CALL_NEGOTIATION_GRACE_MS = 9000; // 9 секунд неприкосновенности звонка на время сборки ICE/TURN
+        const PRESENCE_INTERVAL_MS = 2500;
+        const CALL_SETUP_TIMEOUT_MS = 15000;
         const PEER_STALE_TIMEOUT_MS = 12000;
-        const PEER_DEAD_TIMEOUT_MS = 20000;
+        const PEER_DEAD_TIMEOUT_MS = 22000;
 
-        // НАДЕЖНЫЙ PEER_CONFIG (STUN GOOGLE + CLOUDFLARE + TURN OPENRELAY ДЛЯ РАЗНЫХ СЕТЕЙ И МОБИЛЬНОГО ИНТЕРНЕТА)
+        // ПРОВЕРЕННЫЙ КОНФИГ STUN/TURN ИЗ РАБОЧЕЙ ВЕРСИИ (ДЛЯ РАЗНЫХ ДОМОВ И ПРОВАЙДЕРОВ)
         const PEER_CONFIG = {
             config: {
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
                     { urls: 'stun:stun1.l.google.com:19302' },
                     { urls: 'stun:stun2.l.google.com:19302' },
-                    { urls: 'stun:stun.cloudflare.com:3478' },
-                    {
-                        urls: 'turn:openrelay.metered.ca:80',
-                        username: 'openrelayproject',
-                        credential: 'openrelayproject'
-                    },
-                    {
-                        urls: 'turn:openrelay.metered.ca:443',
-                        username: 'openrelayproject',
-                        credential: 'openrelayproject'
-                    },
-                    {
-                        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-                        username: 'openrelayproject',
-                        credential: 'openrelayproject'
-                    }
+                    { urls: 'turn:relay.metered.ca:80', username: 'metered', credential: 'Password123' },
+                    { urls: 'turn:relay.metered.ca:443', username: 'metered', credential: 'Password123' }
                 ]
-            },
-            pingInterval: 5000
+            }
         };
 
         const dict = {
@@ -938,7 +923,7 @@
 
         function updateNetQualityDOM(peerId, quality, rtt) {
             if (!peerHealth[peerId]) {
-                peerHealth[peerId] = { lastSeen: Date.now(), rtt: rtt || 35, quality: quality || 'good', reconnecting: false };
+                peerHealth[peerId] = { lastSeen: Date.now(), rtt: rtt || 35, quality: quality || 'good', reconnecting: false, discoveredAt: Date.now() };
             } else {
                 if (quality) peerHealth[peerId].quality = quality;
                 if (typeof rtt === 'number') peerHealth[peerId].rtt = rtt;
@@ -1093,6 +1078,8 @@
         let localBroadcastChannel = null;
         let isInRoom = false;
         let isMyPeerOpen = false;
+        let peerDisconnectedSince = 0;
+        let isReplacingMicTrack = false;
 
         // ХРАНЕНИЕ БАНОВ СТРОГО ДЛЯ ТЕКУЩЕЙ КОМНАТЫ (activeRoom)
         function loadRoomBannedDevices(roomName) {
@@ -1221,27 +1208,28 @@
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         let peer = null;
         let localStream = null;
-        let localAnalyserCloneStream = null;
+        let localMicSource = null;
+        let localVoiceLoopRunning = false;
         const activeConnections = {};
         const connectionAttemptTs = {};
         const activeCalls = {};
         const callStartedAt = {};
+        const callDisconnectedSince = {};
         const remotePeerReady = {};
         const remoteStreams = {};
         const remoteAudioAnalysers = {};
-        const remoteAnalyserCloneStreams = {};
         const peerHealth = {};
         const peerJoinTimestamps = {};
-        const reconnectLocks = {};
+        const lastReconnectReqTs = {};
         let chatOpen = false;
 
-        // Разблокировка автовоспроизведения звука на мобильных и ПК при любом клике/касании
+        // Разблокировка автовоспроизведения звука при любом клике/касании
         const unlockAudioPlayback = () => {
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume().catch(() => {});
             }
             document.querySelectorAll('#webrtc-audio-container audio').forEach(a => {
-                if (a.paused) a.play().catch(() => {});
+                if (a.paused && a.srcObject) a.play().catch(() => {});
             });
         };
         document.addEventListener('click', unlockAudioPlayback, { passive: true });
@@ -1323,7 +1311,7 @@
 
             let electedAdminId = "";
 
-            // 1) Если настоящий создатель комнаты (roomCreatorDeviceId) сейчас онлайн — корона принадлежит строго ему!
+            // 1) Если настоящий создатель комнаты (roomCreatorDeviceId) сейчас онлайн — корона принадлежит строго ему
             if (roomCreatorDeviceId) {
                 for (let i = 0; i < onlinePeers.length; i++) {
                     const pid = onlinePeers[i];
@@ -1335,7 +1323,7 @@
                 }
             }
 
-            // 2) Если создатель вышел — права временно у того, кто зашел раньше всех (минимальный joinTimestamp)
+            // 2) Если создатель вышел — права временно у того, кто зашел раньше всех
             if (!electedAdminId) {
                 const sorted = [...onlinePeers].sort((a, b) => {
                     const tsA = peerJoinTimestamps[a] || Number.MAX_SAFE_INTEGER;
@@ -1384,6 +1372,7 @@
             }
         }
 
+        // СТРОГОЕ ПРАВИЛО ОДНОГО ИНИЦИАТОРА (КАК В РАБОЧЕЙ ВЕРСИИ): ЗВОНИТ ТОЛЬКО peerA > peerB
         function shouldInitiateCall(peerA, peerB) {
             return String(peerA) > String(peerB);
         }
@@ -1413,9 +1402,6 @@
 
         // =========================================================================
         // МНОГОКАНАЛЬНАЯ СИСТЕМА ОБНАРУЖЕНИЯ УЧАСТНИКОВ (DISCOVERY BUS)
-        // 1) MQTT over WSS (EMQX + HiveMQ) — мгновенная синхронизация через интернет (< 200ms)
-        // 2) ntfy.sh WSS Stream — резервный независимый HTTPS/WSS канал
-        // 3) BroadcastChannel — мгновенная синхронизация между вкладками
         // =========================================================================
         function buildPresencePacket(packetType = 'presence') {
             return {
@@ -1439,10 +1425,14 @@
 
         function publishToDiscoveryBus(payload) {
             if (!payload || !activeRoom) return;
-            const jsonStr = JSON.stringify({ ...payload, room: activeRoom, senderId: myId });
+            const jsonStr = JSON.stringify({
+                ...payload,
+                room: activeRoom,
+                senderId: myId,
+                peerReady: Boolean(isMyPeerOpen && peer && !peer.destroyed && !peer.disconnected)
+            });
             const topic = `voiceup/v4/room/${activeRoom}`;
 
-            // 1. Отправка во все открытые MQTT WSS брокеры
             mqttClients.forEach(client => {
                 try {
                     if (client && client.connected) {
@@ -1451,7 +1441,6 @@
                 } catch (e) {}
             });
 
-            // 2. Отправка в локальный BroadcastChannel (между вкладками одного браузера)
             try {
                 if (localBroadcastChannel) {
                     localBroadcastChannel.postMessage(jsonStr);
@@ -1463,7 +1452,12 @@
             try {
                 fetch(`https://ntfy.sh/${getDiscoveryTopic()}`, {
                     method: 'POST',
-                    body: JSON.stringify({ ...payload, room: activeRoom, senderId: myId })
+                    body: JSON.stringify({
+                        ...payload,
+                        room: activeRoom,
+                        senderId: myId,
+                        peerReady: Boolean(isMyPeerOpen && peer && !peer.destroyed && !peer.disconnected)
+                    })
                 }).catch(() => {});
             } catch (e) {}
         }
@@ -1484,19 +1478,16 @@
                 remotePeerReady[remoteId] = data.peerReady;
             }
 
-            // Если это системный сигнал (leave, chat, status, admin_*, appeal_*, check_ban_status, request_call_me)
             if (data.type && data.type !== 'presence' && data.type !== 'presence_ack') {
                 if (!data.target || data.target === myId || myProfile.isAdmin) {
-                    handleIncomingSignal(remoteId, data);
+                    handleIncomingSignal(remoteId, data, false);
                 }
                 return;
             }
 
-            // Обработка пакета присутствия (presence / presence_ack)
             if (isInRoom) {
                 onRemotePeerDiscovered(remoteId, data);
                 if (data.type === 'presence') {
-                    // Мгновенно отвечаем своим присутствием, чтобы новый участник увидел нас за < 200ms
                     publishToDiscoveryBus(buildPresencePacket('presence_ack'));
                 }
             }
@@ -1513,7 +1504,6 @@
                 deviceId: data.deviceId || ''
             };
 
-            // Проверка бана для текущей комнаты
             if (myProfile.isAdmin && incomingProfile.deviceId) {
                 bannedDevices = loadRoomBannedDevices(activeRoom);
                 if (bannedDevices[incomingProfile.deviceId]) {
@@ -1533,8 +1523,6 @@
             }
             if (typeof data.peerReady === 'boolean') {
                 remotePeerReady[remoteId] = data.peerReady;
-            } else if (remotePeerReady[remoteId] === undefined) {
-                remotePeerReady[remoteId] = true;
             }
 
             if (!peerHealth[remoteId]) {
@@ -1551,21 +1539,19 @@
                 userStates[remoteId] = { mic: true, deaf: false, adminMuted: false };
             }
 
-            // МГНОВЕННО добавляем карточку друга на экран комнаты!
             addUserCard(remoteId, incomingProfile, false);
             recalculateRoomAdmin();
 
-            // Устанавливаем прямое P2P DataConnection и Голосовой звонок ТОЛЬКО когда оба PeerJS узла открыты на сервере
-            if (isMyPeerOpen && remotePeerReady[remoteId] !== false) {
+            // Соединяемся строго тогда, когда ОБА PeerJS узла открыты на 0.peerjs.com!
+            if (isMyPeerOpen && remotePeerReady[remoteId] === true) {
                 connectDataToPeer(remoteId);
-                ensureVoiceConnectionWithPeer(remoteId);
+                evaluateVoiceCall(remoteId);
             }
         }
 
         function startMultiBrokerDiscovery() {
             stopMultiBrokerDiscovery();
 
-            // 1. Локальный BroadcastChannel
             try {
                 if (typeof BroadcastChannel !== 'undefined') {
                     localBroadcastChannel = new BroadcastChannel(`voiceup_bc_${activeRoom}`);
@@ -1573,7 +1559,6 @@
                 }
             } catch (e) {}
 
-            // 2. MQTT over WSS (параллельно EMQX и HiveMQ для 100% надежности)
             if (typeof mqtt !== 'undefined') {
                 const brokers = [
                     'wss://broker.emqx.io:8084/mqtt',
@@ -1606,7 +1591,6 @@
                 });
             }
 
-            // 3. Независимый WebSocket поток ntfy.sh
             try {
                 ntfySocket = new WebSocket(`wss://ntfy.sh/${getDiscoveryTopic()}/ws`);
                 ntfySocket.onopen = () => {
@@ -1641,59 +1625,207 @@
             }
         }
 
-        // ПРОВЕРКА, ИДЕТ ЛИ СЕЙЧАС УСТАНОВКА ИЛИ РАБОТА ЗВОНКА (ЧТОБЫ НЕ УБИВАТЬ ЗВОНОК ВО ВРЕМЯ СБОРКИ ICE!)
-        function isCallHealthyOrNegotiating(remoteId) {
+        // =========================================================================
+        // ДЕТЕРМИНИРОВАННЫЙ ЗВОНОК И ЗАЩИТА ОТ ОБРЫВОВ ЧЕРЕЗ 1-2 ЧАСА
+        // =========================================================================
+        function isCallAliveOrConnecting(remoteId) {
             const call = activeCalls[remoteId];
             if (!call) return false;
 
             const pc = call.peerConnection;
             const ice = pc ? pc.iceConnectionState : '';
             const conn = pc ? pc.connectionState : '';
-            const age = Date.now() - (callStartedAt[remoteId] || 0);
+            const now = Date.now();
+            const age = now - (callStartedAt[remoteId] || now);
 
             if (ice === 'failed' || ice === 'closed' || conn === 'failed' || conn === 'closed') {
                 return false;
             }
-            if (remoteStreams[remoteId] && (ice === 'connected' || ice === 'completed' || conn === 'connected')) {
+
+            if (ice === 'disconnected' || conn === 'disconnected') {
+                if (!callDisconnectedSince[remoteId]) {
+                    callDisconnectedSince[remoteId] = now;
+                }
+                // Даем 8 секунд на автоматическое восстановление UDP-потока при кратковременном скачке пинга
+                if (now - callDisconnectedSince[remoteId] > 8000) {
+                    return false;
+                }
+                return true;
+            } else {
+                delete callDisconnectedSince[remoteId];
+            }
+
+            if (remoteStreams[remoteId]) {
                 return true;
             }
-            // Даем звонку полные 9 секунд (CALL_NEGOTIATION_GRACE_MS) на сборку STUN/TURN кандидатов без прерываний!
-            if (age < CALL_NEGOTIATION_GRACE_MS) {
+
+            // Пока идет установка звонка (до 15 секунд) — ни в коем случае не сбрасываем его!
+            if (age < CALL_SETUP_TIMEOUT_MS) {
                 return true;
             }
-            return Boolean(remoteStreams[remoteId] && ice !== 'disconnected');
+
+            return false;
         }
 
-        // НАДЕЖНАЯ УСТАНОВКА ГОЛОСОВОГО КАНАЛА БЕЗ GLARE-КОЛЛИЗИЙ И ПРЕЖДЕВРЕМЕННОГО СБРОСА
-        function ensureVoiceConnectionWithPeer(remoteId) {
+        // ДЕТЕРМИНИРОВАННЫЙ ЗВОНОК (Звонит СТРОГО один: shouldInitiateCall(myId, remoteId))
+        function evaluateVoiceCall(remoteId) {
             if (!isInRoom || !isMyPeerOpen || !peer || peer.destroyed || !localStream || !remoteId || remoteId === myId) return;
-            if (remotePeerReady[remoteId] === false) return;
+            if (remotePeerReady[remoteId] !== true) return;
 
-            // Если звонок уже работает или находится в процессе установки ICE (< 9 сек) — НЕ ТРОГАЕМ ЕГО!
-            if (isCallHealthyOrNegotiating(remoteId)) return;
+            if (isCallAliveOrConnecting(remoteId)) return;
 
-            const discoveredAt = peerHealth[remoteId]?.discoveredAt || Date.now();
-            const timeSinceDiscovery = Date.now() - discoveredAt;
-            const iAmPrimaryCaller = shouldInitiateCall(myId, remoteId);
+            // Если старый объект звонка завис или упал в failed — очищаем перед новым вызовом
+            if (activeCalls[remoteId]) {
+                cleanupCall(remoteId);
+            }
 
-            if (iAmPrimaryCaller) {
-                // Инициатор звонит сразу
-                callVoicePeer(remoteId, true);
-            } else if (timeSinceDiscovery > 4500 && !activeCalls[remoteId] && !remoteStreams[remoteId]) {
-                // Если мы ведомый, но за 4.5 секунды звонок от инициатора так и не пришел — просим его позвонить и звоним сами!
-                sendToPeer(remoteId, { type: 'request_voice_reconnect', id: myId });
-                callVoicePeer(remoteId, true);
+            if (shouldInitiateCall(myId, remoteId)) {
+                callVoicePeer(remoteId);
+            } else {
+                // Ведомый узел НИКОГДА не звонит сам (чтобы исключить встречную коллизию и сброс звонка!).
+                // Если поток еще не пришел спустя 5 секунд после готовности обоих узлов — просим ведущего позвонить нам.
+                const discoveredAt = peerHealth[remoteId]?.discoveredAt || Date.now();
+                const now = Date.now();
+                if (now - discoveredAt > 5000 && now - (lastReconnectReqTs[remoteId] || 0) > 6000) {
+                    lastReconnectReqTs[remoteId] = now;
+                    sendToPeer(remoteId, { type: 'request_voice_reconnect', id: myId, peerReady: isMyPeerOpen });
+                }
             }
         }
 
-        // ПОСТОЯННЫЙ ЦИКЛ ПОДДЕРЖАНИЯ СВЯЗИ И СИНХРОНИЗАЦИИ (HEARTBEAT + PRESENCE + AUDIO WATCHDOG)
+        function callVoicePeer(remoteId) {
+            if (!isMyPeerOpen || !peer || peer.destroyed || !localStream || !remoteId || remoteId === myId) return;
+            if (isCallAliveOrConnecting(remoteId)) return;
+
+            if (activeCalls[remoteId]) {
+                cleanupCall(remoteId);
+            }
+
+            try {
+                const actualMic = micEnabled && !adminMuted;
+                localStream.getAudioTracks().forEach(t => { t.enabled = actualMic; });
+
+                const call = peer.call(remoteId, localStream);
+                if (call) {
+                    bindMediaCallHandlers(call, remoteId);
+                }
+            } catch(e) {
+                console.error('Failed to initiate voice call:', e);
+            }
+        }
+
+        function bindMediaCallHandlers(call, remoteId) {
+            if (!call || !remoteId) return;
+            activeCalls[remoteId] = call;
+            callStartedAt[remoteId] = Date.now();
+            delete callDisconnectedSince[remoteId];
+
+            const attachPcMonitor = (pc) => {
+                if (!pc || pc._vupMonitored) return;
+                pc._vupMonitored = true;
+
+                const onIceChange = () => {
+                    if (activeCalls[remoteId] !== call) return;
+                    const ice = pc.iceConnectionState;
+                    const conn = pc.connectionState;
+
+                    if (ice === 'connected' || ice === 'completed' || conn === 'connected') {
+                        delete callDisconnectedSince[remoteId];
+                        if (peerHealth[remoteId]) peerHealth[remoteId].lastSeen = Date.now();
+                        updateNetQualityDOM(remoteId, 'good', peerHealth[remoteId]?.rtt || 30);
+                    } else if (ice === 'failed' || conn === 'failed') {
+                        updateNetQualityDOM(remoteId, 'bad', 999);
+                        cleanupCall(remoteId);
+                        setTimeout(() => evaluateVoiceCall(remoteId), 500);
+                    } else if (ice === 'disconnected' || conn === 'disconnected') {
+                        if (!callDisconnectedSince[remoteId]) {
+                            callDisconnectedSince[remoteId] = Date.now();
+                        }
+                        updateNetQualityDOM(remoteId, 'bad', 420);
+                    }
+                };
+
+                pc.addEventListener('iceconnectionstatechange', onIceChange);
+                pc.addEventListener('connectionstatechange', onIceChange);
+            };
+
+            if (call.peerConnection) {
+                attachPcMonitor(call.peerConnection);
+            } else {
+                setTimeout(() => {
+                    if (call.peerConnection) attachPcMonitor(call.peerConnection);
+                }, 50);
+            }
+
+            call.on('stream', (remoteStream) => {
+                if (!remoteStream) return;
+                remoteStreams[remoteId] = remoteStream;
+                delete callDisconnectedSince[remoteId];
+                attachRemoteAudio(remoteId, remoteStream);
+                if (peerHealth[remoteId]) peerHealth[remoteId].lastSeen = Date.now();
+                updateNetQualityDOM(remoteId, 'good', peerHealth[remoteId]?.rtt || 30);
+            });
+
+            call.on('close', () => {
+                if (activeCalls[remoteId] === call) {
+                    cleanupCall(remoteId);
+                }
+            });
+
+            call.on('error', () => {
+                if (activeCalls[remoteId] === call) {
+                    cleanupCall(remoteId);
+                }
+            });
+        }
+
+        // АВТОМАТИЧЕСКОЕ ВОССТАНОВЛЕНИЕ МИКРОФОНА, ЕСЛИ ДРАЙВЕР ИЛИ ГАРНИТУРА ОТВАЛИЛИСЬ СПУСТЯ 1-2 ЧАСА ИГРЫ
+        async function ensureLocalMicTrackAlive() {
+            if (!isInRoom || isReplacingMicTrack) return;
+            const tracks = localStream ? localStream.getAudioTracks() : [];
+            const isTrackDead = !tracks.length || tracks[0].readyState === 'ended';
+            if (!isTrackDead) return;
+
+            isReplacingMicTrack = true;
+            try {
+                const newStream = await acquireAudioStreamSafe();
+                if (newStream && newStream.getAudioTracks().length > 0) {
+                    const newTrack = newStream.getAudioTracks()[0];
+                    const actualMic = micEnabled && !adminMuted;
+                    newTrack.enabled = actualMic;
+
+                    localStream = newStream;
+                    startLocalSpeakingDetector();
+
+                    // Бесшовно подменяем аудио-трек во всех активных WebRTC соединениях без разрыва связи
+                    Object.values(activeCalls).forEach(call => {
+                        try {
+                            const senders = call?.peerConnection?.getSenders ? call.peerConnection.getSenders() : [];
+                            senders.forEach(sender => {
+                                if (sender && (!sender.track || sender.track.kind === 'audio')) {
+                                    sender.replaceTrack(newTrack).catch(() => {});
+                                }
+                            });
+                        } catch (e) {}
+                    });
+                }
+            } catch (e) {
+            } finally {
+                isReplacingMicTrack = false;
+            }
+        }
+
+        // ПОСТОЯННЫЙ ЦИКЛ ПОДДЕРЖАНИЯ СВЯЗИ И СИНХРОНИЗАЦИИ (HEARTBEAT + AUDIO WATCHDOG)
         function runPresenceAndHeartbeatCycle() {
             if (!isInRoom || !myId) return;
 
-            // 1. Рассылаем свое присутствие по всем каналам Discovery Bus
-            publishToDiscoveryBus(buildPresencePacket('presence'));
+            // 1. Проверяем живость микрофона (защита от отвала гарнитуры через 1-2 часа)
+            ensureLocalMicTrackAlive();
 
-            // 2. Проверяем, чтобы все <audio> элементы воспроизводились и не вставали на паузу
+            // 2. Держим AudioContext и все <audio> элементы активными даже в фоне во время игры
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(() => {});
+            }
             document.querySelectorAll('#webrtc-audio-container audio').forEach(audioEl => {
                 audioEl.muted = !soundEnabled;
                 if (audioEl.paused && audioEl.srcObject) {
@@ -1701,28 +1833,39 @@
                 }
             });
 
-            if (!peer || peer.destroyed) return;
+            // 3. Контролируем соединение с сигнальным сервером PeerJS (защита от отвала через 1-2 часа)
+            if (peer && !peer.destroyed) {
+                if (peer.disconnected) {
+                    isMyPeerOpen = false;
+                    if (!peerDisconnectedSince) peerDisconnectedSince = Date.now();
+                    updateNetQualityDOM(myId, 'bad', 999);
+                    try { peer.reconnect(); } catch (e) {}
 
-            if (peer.disconnected && !peer.destroyed) {
-                isMyPeerOpen = false;
-                updateNetQualityDOM(myId, 'bad', 999);
-                try { peer.reconnect(); } catch (e) {}
-                return;
-            } else if (peer.open) {
-                isMyPeerOpen = true;
-                updateNetQualityDOM(myId, 'good', 0);
+                    // Если сигнальный сервер сбросил сессию окончательно (> 12 сек) — пересоздаем Peer с тем же ID
+                    if (Date.now() - peerDisconnectedSince > 12000) {
+                        peerDisconnectedSince = Date.now();
+                        recreatePeerInstance();
+                    }
+                } else if (peer.open) {
+                    isMyPeerOpen = true;
+                    peerDisconnectedSince = 0;
+                    updateNetQualityDOM(myId, 'good', 0);
+                }
             }
+
+            // 4. Рассылаем присутствие по всем каналам Discovery Bus
+            publishToDiscoveryBus(buildPresencePacket('presence'));
 
             const now = Date.now();
 
-            // 3. Пингуем всех участников комнаты и контролируем голосовые потоки
+            // 5. Проверяем связь и пинг со всеми участниками комнаты
             Object.keys(userProfiles).forEach(pid => {
                 if (!pid || pid === myId) return;
                 if (!peerHealth[pid]) {
                     peerHealth[pid] = { lastSeen: now, rtt: 35, quality: 'good', reconnecting: false, discoveredAt: now };
                 }
 
-                if (isMyPeerOpen && remotePeerReady[pid] !== false) {
+                if (isMyPeerOpen && remotePeerReady[pid] === true) {
                     const conn = activeConnections[pid];
                     if (!conn || !conn.open) {
                         connectDataToPeer(pid);
@@ -1731,6 +1874,7 @@
                             conn.send({
                                 type: 'ping',
                                 id: myId,
+                                peerReady: isMyPeerOpen,
                                 ts: now,
                                 joinTimestamp: myJoinTimestamp,
                                 creatorDeviceId: roomCreatorDeviceId
@@ -1738,8 +1882,7 @@
                         } catch (e) {}
                     }
 
-                    // Проверяем голосовой канал (не прерывая идущую установку ICE!)
-                    ensureVoiceConnectionWithPeer(pid);
+                    evaluateVoiceCall(pid);
                 }
 
                 const call = activeCalls[pid];
@@ -1763,11 +1906,32 @@
                     cleanupPeer(pid);
                 } else if (elapsed > PEER_STALE_TIMEOUT_MS) {
                     updateNetQualityDOM(pid, 'bad', Math.min(999, Math.round(elapsed / 10)));
-                    triggerSoftPeerReconnect(pid);
                 }
             });
 
             recalculateRoomAdmin();
+        }
+
+        function recreatePeerInstance() {
+            if (!isInRoom || !myId) return;
+            try {
+                if (peer && !peer.destroyed) peer.destroy();
+            } catch (e) {}
+
+            isMyPeerOpen = false;
+            peer = new Peer(myId, PEER_CONFIG);
+            bindPeerEvents();
+            peer.on('open', () => {
+                isMyPeerOpen = true;
+                peerDisconnectedSince = 0;
+                publishToDiscoveryBus(buildPresencePacket('presence'));
+                Object.keys(userProfiles).forEach(pid => {
+                    if (pid && pid !== myId && remotePeerReady[pid] === true) {
+                        connectDataToPeer(pid);
+                        evaluateVoiceCall(pid);
+                    }
+                });
+            });
         }
 
         function startPresenceLoop() {
@@ -1787,42 +1951,8 @@
             updateNetQualityDOM(peerId, q, rttMs);
         }
 
-        // МЯГКОЕ ПЕРЕПОДКЛЮЧЕНИЕ WEBRTC ПРИ РЕАЛЬНОМ ОБРЫВЕ СВЯЗИ
-        function triggerSoftPeerReconnect(remoteId) {
-            if (!isMyPeerOpen || !peer || peer.destroyed || !remoteId || remoteId === myId) return;
-            if (reconnectLocks[remoteId]) return;
-            if (isCallHealthyOrNegotiating(remoteId)) return;
-
-            reconnectLocks[remoteId] = true;
-            updateNetQualityDOM(remoteId, 'bad', peerHealth[remoteId]?.rtt || 450);
-
-            const existingConn = activeConnections[remoteId];
-            if (!existingConn || !existingConn.open) {
-                try { if (existingConn) existingConn.close(); } catch (e) {}
-                delete activeConnections[remoteId];
-                delete connectionAttemptTs[remoteId];
-                connectDataToPeer(remoteId);
-            }
-
-            if (shouldInitiateCall(myId, remoteId)) {
-                callVoicePeer(remoteId, true);
-            } else {
-                sendToPeer(remoteId, {
-                    type: 'request_voice_reconnect',
-                    id: myId,
-                    profile: myProfile,
-                    state: userStates[myId] || { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted },
-                    creatorDeviceId: roomCreatorDeviceId
-                });
-            }
-
-            setTimeout(() => {
-                delete reconnectLocks[remoteId];
-            }, 6000);
-        }
-
         // ОБРАБОТЧИК СИГНАЛОВ МЕЖДУ УЧАСТНИКАМИ
-        function handleIncomingSignal(remoteId, message) {
+        function handleIncomingSignal(remoteId, message, fromDirectDataConn = false) {
             if (!message || typeof message !== 'object') return;
             const peerId = message.id || message.senderId || remoteId;
             if (!peerId || peerId === myId) return;
@@ -1833,7 +1963,11 @@
                 peerHealth[peerId].lastSeen = Date.now();
             }
 
-            remotePeerReady[peerId] = true;
+            if (fromDirectDataConn) {
+                remotePeerReady[peerId] = true;
+            } else if (typeof message.peerReady === 'boolean') {
+                remotePeerReady[peerId] = message.peerReady;
+            }
 
             if (typeof message.joinTimestamp === 'number' && message.joinTimestamp > 0) {
                 peerJoinTimestamps[peerId] = message.joinTimestamp;
@@ -1842,11 +1976,11 @@
                 syncCreatorDeviceId(message.creatorDeviceId, peerId, message.joinTimestamp);
             }
 
-            // Heartbeat Ping / Pong
             if (message.type === 'ping') {
                 sendToPeer(peerId, {
                     type: 'pong',
                     id: myId,
+                    peerReady: isMyPeerOpen,
                     ts: message.ts,
                     joinTimestamp: myJoinTimestamp,
                     creatorDeviceId: roomCreatorDeviceId
@@ -1863,8 +1997,12 @@
             }
 
             if (message.type === 'request_voice_reconnect') {
-                if (!isCallHealthyOrNegotiating(peerId)) {
-                    callVoicePeer(peerId, true);
+                remotePeerReady[peerId] = true;
+                if (shouldInitiateCall(myId, peerId)) {
+                    if (!isCallAliveOrConnecting(peerId)) {
+                        cleanupCall(peerId);
+                        callVoicePeer(peerId);
+                    }
                 }
                 return;
             }
@@ -1885,7 +2023,6 @@
 
             const peerProfile = message.profile || userProfiles[peerId] || { nick: dict[currentLang].guest, color: '#ffffff', avatar: '', deviceType: 'pc' };
 
-            // Проверка бана для текущей комнаты
             if (myProfile.isAdmin && (message.type === 'join' || message.type === 'handshake' || message.type === 'handshake_reply')) {
                 bannedDevices = loadRoomBannedDevices(activeRoom);
                 if (peerProfile.deviceId && bannedDevices[peerProfile.deviceId]) {
@@ -1897,7 +2034,6 @@
                 }
             }
 
-            // Апелляция бана
             if (message.type === 'ban_appeal') {
                 if (!myProfile.isAdmin) return;
 
@@ -2003,6 +2139,7 @@
                         creatorDeviceId: roomCreatorDeviceId
                     });
                 }
+                evaluateVoiceCall(peerId);
                 return;
             }
 
@@ -2016,104 +2153,6 @@
 
         const seenChatIds = new Set();
 
-        function attachPeerConnectionMonitors(pc, remoteId) {
-            if (!pc) return;
-
-            // Прямой перехват аудио-трека на уровне RTCPeerConnection (на случай если PeerJS задержит событие 'stream')
-            pc.addEventListener('track', (event) => {
-                const stream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream([event.track]);
-                if (stream && stream.getAudioTracks().length > 0) {
-                    remoteStreams[remoteId] = stream;
-                    attachRemoteAudio(remoteId, stream);
-                    if (peerHealth[remoteId]) peerHealth[remoteId].lastSeen = Date.now();
-                    updateNetQualityDOM(remoteId, 'good', peerHealth[remoteId]?.rtt || 30);
-                }
-            });
-
-            const handleStateChange = () => {
-                const ice = pc.iceConnectionState;
-                const conn = pc.connectionState;
-                if (ice === 'connected' || ice === 'completed' || conn === 'connected') {
-                    if (peerHealth[remoteId]) peerHealth[remoteId].lastSeen = Date.now();
-                    updateNetQualityDOM(remoteId, 'good', peerHealth[remoteId]?.rtt || 32);
-                } else if (ice === 'failed' || conn === 'failed') {
-                    updateNetQualityDOM(remoteId, 'bad', 999);
-                    triggerSoftPeerReconnect(remoteId);
-                } else if (ice === 'disconnected' || conn === 'disconnected') {
-                    updateNetQualityDOM(remoteId, 'bad', 400);
-                    setTimeout(() => {
-                        if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
-                            triggerSoftPeerReconnect(remoteId);
-                        }
-                    }, 4500);
-                }
-            };
-            pc.addEventListener('iceconnectionstatechange', handleStateChange);
-            pc.addEventListener('connectionstatechange', handleStateChange);
-        }
-
-        function bindMediaCallHandlers(call, remoteId) {
-            if (!call || !remoteId) return;
-            activeCalls[remoteId] = call;
-            callStartedAt[remoteId] = Date.now();
-
-            if (call.peerConnection) {
-                attachPeerConnectionMonitors(call.peerConnection, remoteId);
-            } else {
-                setTimeout(() => {
-                    if (call.peerConnection) attachPeerConnectionMonitors(call.peerConnection, remoteId);
-                }, 50);
-            }
-
-            call.on('stream', (stream) => {
-                if (!stream) return;
-                remoteStreams[remoteId] = stream;
-                attachRemoteAudio(remoteId, stream);
-                if (peerHealth[remoteId]) peerHealth[remoteId].lastSeen = Date.now();
-                updateNetQualityDOM(remoteId, 'good', peerHealth[remoteId]?.rtt || 30);
-            });
-
-            call.on('close', () => {
-                if (activeCalls[remoteId] === call) {
-                    delete activeCalls[remoteId];
-                    delete callStartedAt[remoteId];
-                    delete remoteStreams[remoteId];
-                }
-            });
-
-            call.on('error', () => {
-                if (activeCalls[remoteId] === call) {
-                    delete activeCalls[remoteId];
-                    delete callStartedAt[remoteId];
-                    delete remoteStreams[remoteId];
-                }
-            });
-        }
-
-        function callVoicePeer(remoteId, forceCall) {
-            if (!isMyPeerOpen || !peer || peer.destroyed || !localStream || !remoteId || remoteId === myId) return;
-            if (!forceCall && isCallHealthyOrNegotiating(remoteId)) return;
-
-            if (activeCalls[remoteId]) {
-                // Если звонок уже открыт или собирает ICE меньше 9 секунд — не убиваем его!
-                if (isCallHealthyOrNegotiating(remoteId)) return;
-                try { activeCalls[remoteId].close(); } catch (e) {}
-                delete activeCalls[remoteId];
-                delete callStartedAt[remoteId];
-            }
-
-            try {
-                // Гарантируем, что локальный аудио-трек включен в соответствии с кнопкой микрофона
-                const actualMic = micEnabled && !adminMuted;
-                localStream.getAudioTracks().forEach(t => { t.enabled = actualMic; });
-
-                const call = peer.call(remoteId, localStream);
-                if (call) {
-                    bindMediaCallHandlers(call, remoteId);
-                }
-            } catch(e) {}
-        }
-
         function bindPeerEvents() {
             peer.on('connection', (conn) => {
                 setupDataConnection(conn);
@@ -2122,11 +2161,7 @@
             peer.on('call', (call) => {
                 if (!localStream || !call || !call.peer) return;
                 const remoteId = call.peer;
-
-                // Если у нас был свой исходящий звонок, который еще не получил аудиопоток, закрываем старый и принимаем входящий
-                if (activeCalls[remoteId] && activeCalls[remoteId] !== call && !remoteStreams[remoteId]) {
-                    try { activeCalls[remoteId].close(); } catch (e) {}
-                }
+                remotePeerReady[remoteId] = true;
 
                 const actualMic = micEnabled && !adminMuted;
                 localStream.getAudioTracks().forEach(t => { t.enabled = actualMic; });
@@ -2137,27 +2172,48 @@
 
             peer.on('disconnected', () => {
                 isMyPeerOpen = false;
+                if (!peerDisconnectedSince) peerDisconnectedSince = Date.now();
                 updateNetQualityDOM(myId, 'bad', 999);
                 setTimeout(() => {
                     if (peer && peer.disconnected && !peer.destroyed) {
                         try { peer.reconnect(); } catch (e) {}
                     }
-                }, 600);
+                }, 500);
             });
 
             peer.on('error', (err) => {
-                if (err && err.type === 'peer-unavailable') return;
-                console.warn('Peer warning:', err ? err.type : '');
+                if (err && err.type === 'peer-unavailable') {
+                    // Если целевой пир еще не успел зарегистрироваться на 0.peerjs.com — сбрасываем пустую попытку звонка, чтобы повторить через 2.5 сек
+                    const msg = String(err.message || '');
+                    const match = msg.match(/peer\s+([^\s]+)/i);
+                    const unavailableId = match && match[1] ? match[1].trim() : '';
+                    if (unavailableId) {
+                        if (activeCalls[unavailableId] && !remoteStreams[unavailableId]) {
+                            cleanupCall(unavailableId);
+                        }
+                        if (activeConnections[unavailableId] && !activeConnections[unavailableId].open) {
+                            delete activeConnections[unavailableId];
+                            delete connectionAttemptTs[unavailableId];
+                        }
+                    }
+                    return;
+                }
+                console.warn('Peer notice:', err ? err.type : '');
             });
         }
 
+        // ИНИЦИАЦИЯ DATACONNECTION ТОЛЬКО ОДНОЙ СТОРОНОЙ (myId > targetId) ДЛЯ ИСКЛЮЧЕНИЯ ДВОЙНЫХ СОЕДИНЕНИЙ
         function connectDataToPeer(targetId) {
             if (!isMyPeerOpen || !peer || peer.destroyed || !targetId || targetId === myId) return;
+            if (remotePeerReady[targetId] !== true) return;
+
             const existing = activeConnections[targetId];
             if (existing && existing.open) return;
 
+            if (!shouldInitiateCall(myId, targetId)) return;
+
             const now = Date.now();
-            if (now - (connectionAttemptTs[targetId] || 0) < 3500) return;
+            if (now - (connectionAttemptTs[targetId] || 0) < 4000) return;
 
             if (existing && !existing.open) {
                 try { existing.close(); } catch (e) {}
@@ -2201,11 +2257,11 @@
                     });
                 } catch (e) {}
 
-                ensureVoiceConnectionWithPeer(remoteId);
+                evaluateVoiceCall(remoteId);
             });
 
             conn.on('data', (data) => {
-                handleIncomingSignal(conn.peer, data);
+                handleIncomingSignal(conn.peer, data, true);
             });
 
             conn.on('close', () => {
@@ -2229,6 +2285,7 @@
                 delete activeCalls[peerId];
             }
             delete callStartedAt[peerId];
+            delete callDisconnectedSince[peerId];
             delete remoteStreams[peerId];
             const a = document.getElementById(`audio-${peerId}`);
             if (a) {
@@ -2239,10 +2296,6 @@
                 try { remoteAudioAnalysers[peerId].disconnect(); } catch(e) {}
                 delete remoteAudioAnalysers[peerId];
             }
-            if (remoteAnalyserCloneStreams[peerId]) {
-                try { remoteAnalyserCloneStreams[peerId].getTracks().forEach(t => t.stop()); } catch (e) {}
-                delete remoteAnalyserCloneStreams[peerId];
-            }
         }
 
         function cleanupPeer(peerId) {
@@ -2251,7 +2304,7 @@
             delete remotePeerReady[peerId];
             delete peerHealth[peerId];
             delete peerJoinTimestamps[peerId];
-            delete reconnectLocks[peerId];
+            delete lastReconnectReqTs[peerId];
             cleanupCall(peerId);
             delete userProfiles[peerId];
             delete userStates[peerId];
@@ -2259,14 +2312,9 @@
             recalculateRoomAdmin();
         }
 
-        // НАДЕЖНОЕ ПОДКЛЮЧЕНИЕ ВХОДЯЩЕГО АУДИОПОТОКА
+        // ТОЧНОЕ ПОДКЛЮЧЕНИЕ АУДИОПОТОКА ИЗ РАБОЧЕЙ ВЕРСИИ
         function attachRemoteAudio(peerId, remoteStream) {
             if (!remoteStream) return;
-
-            // Включаем все входящие аудио-треки
-            remoteStream.getAudioTracks().forEach(t => {
-                t.enabled = true;
-            });
 
             let audio = document.getElementById(`audio-${peerId}`);
             if (!audio) {
@@ -2274,50 +2322,29 @@
                 audio.id = `audio-${peerId}`;
                 audio.autoplay = true;
                 audio.playsInline = true;
-                audio.setAttribute('playsinline', '');
-                audio.setAttribute('autoplay', '');
+                audio.style.display = 'none';
                 document.getElementById('webrtc-audio-container').appendChild(audio);
             }
-
             if (audio.srcObject !== remoteStream) {
                 audio.srcObject = remoteStream;
             }
-
             const vol = localPeerSettings[peerId] ? localPeerSettings[peerId].volume : 1;
             const isMuted = localPeerSettings[peerId] ? localPeerSettings[peerId].muted : false;
             audio.volume = isMuted ? 0 : vol;
             audio.muted = !soundEnabled;
-
-            const tryPlay = () => {
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume().catch(() => {});
-                }
-                audio.play().catch(() => {});
-            };
-            audio.onloadedmetadata = tryPlay;
-            tryPlay();
+            audio.play().catch(() => {});
 
             setupSpeakingDetector(peerId, remoteStream);
         }
 
-        // ИНДИКАТОР ГОЛОСА ЧЕРЕЗ CLONE() ПОТОКА (ЧТОБЫ CHROME WEBAUDIO НЕ ЗАГЛУШАЛ <AUDIO> ЭЛЕМЕНТ!)
         function setupSpeakingDetector(peerId, stream) {
             try {
                 if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
                 if (remoteAudioAnalysers[peerId]) {
                     try { remoteAudioAnalysers[peerId].disconnect(); } catch (e) {}
+                    delete remoteAudioAnalysers[peerId];
                 }
-                if (remoteAnalyserCloneStreams[peerId]) {
-                    try { remoteAnalyserCloneStreams[peerId].getTracks().forEach(t => t.stop()); } catch (e) {}
-                }
-
-                // Клонируем поток специально для анализатора частот, не трогая основной поток в <audio>
-                const clonedStream = stream.clone ? stream.clone() : stream;
-                if (clonedStream !== stream) {
-                    remoteAnalyserCloneStreams[peerId] = clonedStream;
-                }
-
-                const src = audioCtx.createMediaStreamSource(clonedStream);
+                const src = audioCtx.createMediaStreamSource(stream);
                 const analyser = audioCtx.createAnalyser();
                 analyser.fftSize = 256;
                 analyser.smoothingTimeConstant = 0.3;
@@ -2334,7 +2361,7 @@
                     let avg = sum / data.length;
                     const avatar = card.querySelector('.avatar');
                     if (avatar) {
-                        if (avg > 12) avatar.classList.add('speaking');
+                        if (avg > 15) avatar.classList.add('speaking');
                         else avatar.classList.remove('speaking');
                     }
                     requestAnimationFrame(checkVoice);
@@ -2343,27 +2370,28 @@
             } catch(e) {}
         }
 
+        // ЛОКАЛЬНЫЙ ДЕТЕКТОР РЕЧИ (ПОДСВЕТКА СВОЕЙ АВАТАРКИ)
         function startLocalSpeakingDetector() {
             if (!localStream) return;
             try {
                 if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-                if (localAnalyserCloneStream) {
-                    try { localAnalyserCloneStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+                if (localMicSource) {
+                    try { localMicSource.disconnect(); } catch (e) {}
+                    localMicSource = null;
                 }
-                // Клонируем локальный поток для детектора речи, чтобы основной localStream шел в WebRTC без искажений
-                localAnalyserCloneStream = localStream.clone ? localStream.clone() : localStream;
-                const micSource = audioCtx.createMediaStreamSource(localAnalyserCloneStream);
+                localMicSource = audioCtx.createMediaStreamSource(localStream);
                 const localAnalyser = audioCtx.createAnalyser();
                 localAnalyser.fftSize = 256;
                 localAnalyser.smoothingTimeConstant = 0.3;
-                micSource.connect(localAnalyser);
+                localMicSource.connect(localAnalyser);
 
+                const currentSource = localMicSource;
                 const dataArray = new Uint8Array(localAnalyser.frequencyBinCount);
                 let localSpeaking = false;
                 let localSpeakTimeout = null;
 
                 const checkLocalVoice = () => {
-                    if (!isInRoom) return;
+                    if (!isInRoom || localMicSource !== currentSource) return;
                     const myCard = document.getElementById(`card-${myId}`);
                     const actualMic = micEnabled && !adminMuted;
                     
@@ -2381,7 +2409,7 @@
                     for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
                     let avg = sum / dataArray.length;
 
-                    if (avg > 12) {
+                    if (avg > 15) {
                         if (!localSpeaking) {
                             localSpeaking = true;
                             if (myCard) myCard.querySelector('.avatar')?.classList.add('speaking');
@@ -2396,10 +2424,12 @@
                     requestAnimationFrame(checkLocalVoice);
                 };
                 requestAnimationFrame(checkLocalVoice);
-            } catch(e) {}
+            } catch(e) {
+                console.error("Local speech detector init error:", e);
+            }
         }
 
-        // СТАРТ СОЕДИНЕНИЯ: МГНОВЕННАЯ ОТРИСОВКА СВОЕЙ КАРТОЧКИ (0 МС, БЕЗ ТЕМНОГО ЭКРАНА!) + МОНОЛИТНЫЙ WEBRTC
+        // СТАРТ СОЕДИНЕНИЯ: МГНОВЕННАЯ ОТРИСОВКА СВОЕЙ КАРТОЧКИ (0 МС) + НАДЕЖНЫЙ P2P WEBRTC
         function startPeerConnection() {
             if (peer && !peer.destroyed) {
                 try { peer.destroy(); } catch (e) {}
@@ -2407,11 +2437,11 @@
 
             isInRoom = true;
             isMyPeerOpen = false;
+            peerDisconnectedSince = 0;
             myJoinTimestamp = Date.now();
             bannedDevices = loadRoomBannedDevices(activeRoom);
             roomCreatorDeviceId = localStorage.getItem('voiceup_creator_' + activeRoom) || "";
 
-            // Генерируем 100% уникальный, никогда не зависающий ID пира
             const devShort = String(myProfile.deviceId || 'dev').replace(/[^a-zA-Z0-9]/g, '').slice(-5);
             const rand = Math.random().toString(36).substring(2, 7);
             myId = `${activeRoom}_u_${devShort}_${rand}`;
@@ -2425,26 +2455,27 @@
             peerHealth[myId] = { lastSeen: Date.now(), rtt: 0, quality: 'good', reconnecting: false, discoveredAt: Date.now() };
             userStates[myId] = { mic: micEnabled && !adminMuted, deaf: !soundEnabled, adminMuted: adminMuted };
 
-            // 1. МГНОВЕННО рисуем свою карточку на экране комнаты — никакого пустого темного экрана!
+            // 1. МГНОВЕННО рисуем свою карточку на экране комнаты
             addUserCard(myId, myProfile, true);
             recalculateRoomAdmin();
             startLocalSpeakingDetector();
             startSessionTimer();
 
-            // 2. Открываем наш PeerJS узел для звонков и данных
+            // 2. Открываем PeerJS узел
             peer = new Peer(myId, PEER_CONFIG);
             bindPeerEvents();
 
             peer.on('open', () => {
                 isMyPeerOpen = true;
+                peerDisconnectedSince = 0;
                 publishToDiscoveryBus(buildPresencePacket('presence'));
                 publishNtfyEvent(buildPresencePacket('presence'));
 
-                // Сразу после регистрации на PeerJS соединяемся со всеми уже найденными участниками комнаты!
+                // Как только наш Peer открыт на 0.peerjs.com — соединяемся со всеми готовыми участниками
                 Object.keys(userProfiles).forEach(pid => {
-                    if (pid && pid !== myId && remotePeerReady[pid] !== false) {
+                    if (pid && pid !== myId && remotePeerReady[pid] === true) {
                         connectDataToPeer(pid);
-                        ensureVoiceConnectionWithPeer(pid);
+                        evaluateVoiceCall(pid);
                     }
                 });
             });
@@ -2797,19 +2828,10 @@
         function updateMicHardware() { 
             if (!localStream) return; 
             const actualMic = micEnabled && !adminMuted; 
-            localStream.getAudioTracks().forEach(t => {
-                t.enabled = actualMic;
-            });
-            Object.values(activeCalls).forEach(call => {
-                try {
-                    const senders = call?.peerConnection?.getSenders ? call.peerConnection.getSenders() : [];
-                    senders.forEach(s => {
-                        if (s.track && s.track.kind === 'audio') {
-                            s.track.enabled = actualMic;
-                        }
-                    });
-                } catch (e) {}
-            });
+            const audioTracks = localStream.getAudioTracks();
+            if (audioTracks && audioTracks.length > 0) {
+                audioTracks[0].enabled = actualMic;
+            }
             micBtn.classList.toggle('off', !actualMic); 
             broadcastStatus(); 
         }
@@ -2860,9 +2882,6 @@
             stopSessionTimer();
             releasePeerImmediately();
             if (localStream) localStream.getTracks().forEach(track => track.stop()); 
-            if (localAnalyserCloneStream) {
-                try { localAnalyserCloneStream.getTracks().forEach(track => track.stop()); } catch (e) {}
-            }
             document.getElementById('room-screen').innerHTML = ''; 
             window.location.href = window.location.pathname; 
         }
@@ -2952,7 +2971,6 @@
         });
 
         function addUserCard(id, profile, isMe) {
-            // Защита от дублирования карточек одного и того же физического устройства (deviceId) при перезагрузке страницы
             if (profile && profile.deviceId) {
                 Object.keys(userProfiles).forEach(existingId => {
                     if (existingId !== id && existingId !== myId && userProfiles[existingId]?.deviceId === profile.deviceId) {
@@ -2968,7 +2986,7 @@
             if(!peerHealth[id]) peerHealth[id] = { lastSeen: Date.now(), rtt: 30, quality: 'good', reconnecting: false, discoveredAt: Date.now() };
             
             updateCardVisuals(id, profile, isMe); 
-            if (isNew && !isMe) setTimeout(() => playUiSound('join'), 250);
+            if (isNew && !isMe) setTimeout(() => playUiSound('join'), 400);
         }
 
         function updateCardVisuals(id, profile, isMe) {
@@ -3156,7 +3174,7 @@
             if (notif) notif.remove(); 
         };
 
-        // ЗАХВАТ МИКРОФОНА С АВТО-ФОЛЛБЭКОМ И ВКЛЮЧЕННЫМ AUTO GAIN CONTROL
+        // ЗАХВАТ МИКРОФОНА С ТОЧНЫМИ ПАРАМЕТРАМИ ИЗ РАБОЧЕЙ ВЕРСИИ
         async function acquireAudioStreamSafe() {
             let stream = null;
             try {
@@ -3164,20 +3182,22 @@
                     audio: { 
                         echoCancellation: { ideal: true },
                         noiseSuppression: { ideal: true },
-                        autoGainControl: { ideal: true }
+                        autoGainControl: { ideal: false },
+                        latency: { ideal: 0.05 },
+                        googEchoCancellation: { ideal: true },
+                        googNoiseSuppression: { ideal: true },
+                        googAutoGainControl: { ideal: false },
+                        googHighpassFilter: { ideal: true }
                     }, 
                     video: false 
                 });
             } catch (firstErr) {
                 stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
             }
-            if (stream) {
-                stream.getAudioTracks().forEach(t => { t.enabled = true; });
-            }
             return stream;
         }
 
-        // ВХОД В КОМНАТУ (БЕЗ ПУСТОГО ТЕМНОГО ЭКРАНА И БЕЗ ПЕРЕЗАПИСИ КОДА КОМНАТЫ)
+        // ВХОД В КОМНАТУ
         elBtn.onclick = async () => {
             const inputVal = elInput.value.trim(); 
             if (!inputVal) return alert(dict[currentLang].needNick);
@@ -3207,12 +3227,11 @@
             
             try {
                 if (audioCtx.state === 'suspended') {
-                    audioCtx.resume().catch(() => {}); 
+                    await audioCtx.resume(); 
                 }
                 
                 localStream = await acquireAudioStreamSafe();
                 
-                // МГНОВЕННО открываем экран комнаты и запускаем соединение (0 мс задержки!)
                 joinScreen.style.display = 'none'; 
                 roomScreen.style.display = 'flex';
                 roomScreen.style.opacity = '1'; 
